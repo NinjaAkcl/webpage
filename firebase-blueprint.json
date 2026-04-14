@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A 3D printed product for sale",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the product"
+        },
+        "desc": {
+          "type": "string",
+          "description": "Description of the product"
+        },
+        "price": {
+          "type": "string",
+          "description": "Price of the product (e.g., '$50,000')"
+        },
+        "originalPrice": {
+          "type": "string",
+          "description": "Original price before discount (e.g., '$70,000')"
+        },
+        "discountBadge": {
+          "type": "string",
+          "description": "Text for the discount badge (e.g., '-20%' or 'OFERTA')"
+        },
+        "img": {
+          "type": "string",
+          "description": "Image URL or placeholder text (legacy single image)"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of image URLs for the product carousel"
+        }
+      },
+      "required": ["name", "desc", "price", "img"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
+      },
+      "description": "Collection of products"
+    }
+  }
+}

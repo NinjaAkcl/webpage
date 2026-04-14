@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required) - Name of the product
+    //   - desc: string (required) - Description of the product
+    //   - price: string (required) - Price of the product
+    //   - img: string (required) - Image URL or placeholder text
+    //
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /products/{productId} {
+      // Allow public read so the landing page can display products to visitors
+      allow read: if true;
+      // Only allow authenticated users to modify products (can be done via Firebase Console)
+      allow write: if isAuthenticated();
+    }
+  }
+}
