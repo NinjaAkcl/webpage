@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ChevronLeft, ChevronRight, Tag } from 'lucide-react';
+import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
 import { collection, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
+
+const WHATSAPP_NUMBER = "5493513403129";
 
 interface Product {
   id?: string;
@@ -14,6 +16,11 @@ interface Product {
   images?: string[];
 }
 
+interface CartItem extends Product {
+  cartId: string;
+  quantity: number;
+}
+
 const INITIAL_PRODUCTS: Product[] = [
   { name: 'Organizador de Escritorio Minimal', desc: 'Porta lápices y herramientas con diseño compacto. Ideal para escritorio o estudio.', price: '$50,000', img: 'Foto+Organizador' },
   { name: 'Bandeja Organizadora "Wave"', desc: 'Bandeja multipropósito con compartimentos para accesorios, herramientas o PC.', price: '$50,000', img: 'Foto+Bandeja+Wave' },
@@ -23,9 +30,17 @@ const INITIAL_PRODUCTS: Product[] = [
   { name: 'Soporte Articulado para Celular', desc: 'Brazo ajustable para sostener el teléfono en escritorio. Útil para grabar o contenido.', price: '$50,000', img: 'Foto+Soporte' },
 ];
 
-const ProductCard: React.FC<{ p: Product; onClick: () => void }> = ({ p, onClick }) => {
+const ProductCard: React.FC<{ p: Product; onClick: () => void; onAdd: (p: Product) => void }> = ({ p, onClick, onAdd }) => {
   const images = p.images && p.images.length > 0 ? p.images : [p.img];
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAdd(p);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1000);
+  };
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,10 +116,15 @@ const ProductCard: React.FC<{ p: Product; onClick: () => void }> = ({ p, onClick
             <span className={`text-xl font-extrabold ${p.originalPrice ? 'text-brand-accent' : 'text-white'}`}>{p.price}</span>
           </div>
           <button 
-            className="bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-black px-4 py-2 rounded-full font-extrabold text-xs uppercase transition-colors"
-            onClick={(e) => { e.stopPropagation(); /* Add to cart logic could go here */ }}
+            className={`px-4 py-2 rounded-full font-extrabold text-xs uppercase transition-all duration-300 flex items-center gap-1.5 ${
+              isAdded 
+                ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.5)]' 
+                : 'bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-black'
+            }`}
+            onClick={handleAdd}
           >
-            AÑADIR
+            <ShoppingCart size={14} />
+            {isAdded ? '¡AGREGADO!' : 'AGREGAR'}
           </button>
         </div>
       </div>
@@ -112,9 +132,19 @@ const ProductCard: React.FC<{ p: Product; onClick: () => void }> = ({ p, onClick
   );
 }
 
-const ProductModal: React.FC<{ p: Product; onClose: () => void }> = ({ p, onClose }) => {
+const ProductModal: React.FC<{ p: Product; onClose: () => void; onAdd: (p: Product) => void }> = ({ p, onClose, onAdd }) => {
   const images = p.images && p.images.length > 0 ? p.images : [p.img];
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAdd = () => {
+    onAdd(p);
+    setIsAdded(true);
+    setTimeout(() => {
+      setIsAdded(false);
+      onClose();
+    }, 600);
+  };
 
   const nextImage = () => setCurrentIndex((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
@@ -202,8 +232,16 @@ const ProductModal: React.FC<{ p: Product; onClose: () => void }> = ({ p, onClos
             {p.desc}
           </div>
           
-          <button className="w-full bg-brand-accent text-black py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider transition-transform hover:scale-[1.02] hover:opacity-90 shadow-[0_0_20px_rgba(0,255,136,0.2)]">
-            AÑADIR AL CARRITO
+          <button 
+            onClick={handleAdd}
+            className={`w-full py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,136,0.2)] ${
+              isAdded
+                ? 'bg-white text-black scale-[1.02]'
+                : 'bg-brand-accent text-black hover:scale-[1.02] hover:opacity-90'
+            }`}
+          >
+            <ShoppingCart size={20} />
+            {isAdded ? '¡AGREGADO AL CARRITO!' : 'AGREGAR AL CARRITO'}
           </button>
         </div>
       </div>
@@ -216,6 +254,57 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Cart State
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartIsAnimating, setCartIsAnimating] = useState(false);
+
+  const addToCart = (product: Product) => {
+    setCart(prev => {
+      const matchBy = product.id ? (item: CartItem) => item.id === product.id : (item: CartItem) => item.name === product.name;
+      const existingItem = prev.find(matchBy);
+      
+      if (existingItem) {
+        return prev.map(item => matchBy(item) ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+      return [...prev, { ...product, cartId: Math.random().toString(), quantity: 1 }];
+    });
+    
+    setCartIsAnimating(true);
+    setTimeout(() => setCartIsAnimating(false), 300);
+  };
+
+  const updateQuantity = (cartId: string, delta: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.cartId === cartId) {
+        return { ...item, quantity: Math.max(1, item.quantity + delta) };
+      }
+      return item;
+    }));
+  };
+
+  const removeFromCart = (cartId: string) => {
+    setCart(prev => prev.filter(item => item.cartId !== cartId));
+  };
+
+  const parsePrice = (priceStr: string) => {
+    const numericStr = priceStr.replace(/[^0-9]/g, '');
+    return parseInt(numericStr, 10) || 0;
+  };
+
+  const cartTotal = cart.reduce((sum, item) => sum + (parsePrice(item.price) * item.quantity), 0);
+  const formatPrice = (num: number) => `$${num.toLocaleString('es-AR')}`;
+
+  const handleWhatsAppCheckout = () => {
+    if (cart.length === 0) return;
+    let message = `¡Hola! Quiero realizar el siguiente pedido:\n\n`;
+    cart.forEach(item => {
+      message += `- ${item.quantity}x *${item.name}* (${item.price} c/u)\n`;
+    });
+    message += `\n*Total estimado: ${formatPrice(cartTotal)}*\n\n¿Tienen stock y cómo coordinamos el pago/envío?`;
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
@@ -254,20 +343,44 @@ export default function App() {
           </div>
           
           {/* Desktop Nav */}
-          <div className="hidden sm:flex gap-8 text-sm font-semibold uppercase">
+          <div className="hidden sm:flex items-center gap-8 text-sm font-semibold uppercase">
             <a href="#" className="text-brand-accent border-b-2 border-brand-accent pb-1 transition-colors">Inicio</a>
             <a href="#productos" className="hover:text-brand-accent hover:border-b-2 hover:border-brand-accent pb-1 transition-colors border-b-2 border-transparent">Productos</a>
             <a href="#contacto" className="hover:text-brand-accent hover:border-b-2 hover:border-brand-accent pb-1 transition-colors border-b-2 border-transparent">Contacto</a>
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className={`relative p-2 text-white hover:text-brand-accent transition-all duration-300 ${cartIsAnimating ? 'scale-125 text-brand-accent' : ''}`}
+            >
+              <ShoppingCart size={24} />
+              {cart.length > 0 && (
+                <span className={`absolute top-0 right-0 bg-brand-accent text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center transition-transform duration-300 ${cartIsAnimating ? 'scale-125' : ''}`}>
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button 
-            className="sm:hidden text-brand-accent p-2 focus:outline-none"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMobileMenuOpen ? <X size={32} /> : <Menu size={32} />}
-          </button>
+          {/* Mobile Menu Button & Cart */}
+          <div className="sm:hidden flex items-center gap-4">
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className={`relative p-2 text-white hover:text-brand-accent transition-all duration-300 ${cartIsAnimating ? 'scale-125 text-brand-accent' : ''}`}
+            >
+              <ShoppingCart size={24} />
+              {cart.length > 0 && (
+                <span className={`absolute top-0 right-0 bg-brand-accent text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center transition-transform duration-300 ${cartIsAnimating ? 'scale-125' : ''}`}>
+                  {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+            <button 
+              className="text-brand-accent p-2 focus:outline-none"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={32} /> : <Menu size={32} />}
+            </button>
+          </div>
         </nav>
 
         {/* Mobile Nav Dropdown */}
@@ -325,7 +438,7 @@ export default function App() {
           {loading ? (
             <div className="col-span-full text-center py-10 text-brand-muted">Cargando productos...</div>
           ) : products.map((p, i) => (
-            <ProductCard key={p.id || i} p={p} onClick={() => setSelectedProduct(p)} />
+            <ProductCard key={p.id || i} p={p} onClick={() => setSelectedProduct(p)} onAdd={addToCart} />
           ))}
         </div>
       </section>
@@ -355,8 +468,11 @@ export default function App() {
               </a>
             </div>
             <div className="mb-4">
-              <span className="block mb-1">Por teléfono</span>
-              <span className="text-brand-accent font-semibold">3514354675</span>
+              <span className="block mb-1">Por WhatsApp</span>
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="text-brand-accent font-semibold hover:underline flex items-center gap-2">
+                <MessageCircle size={16} />
+                351 340-3129
+              </a>
             </div>
           </div>
           
@@ -395,8 +511,82 @@ export default function App() {
 
       {/* Product Detail Modal */}
       {selectedProduct && (
-        <ProductModal p={selectedProduct} onClose={() => setSelectedProduct(null)} />
+        <ProductModal p={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />
       )}
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+          <div className="relative w-full max-w-md bg-brand-card h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h2 className="text-xl font-extrabold text-brand-accent flex items-center gap-2">
+                <ShoppingCart size={24} />
+                TU CARRITO
+              </h2>
+              <button onClick={() => setIsCartOpen(false)} className="text-white/70 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+              {cart.length === 0 ? (
+                <div className="text-center text-brand-muted my-auto">
+                  <ShoppingCart size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>Tu carrito está vacío</p>
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.cartId} className="flex gap-4 bg-black/30 p-4 rounded-xl border border-white/5">
+                    <img src={item.img.startsWith('http') || item.img.startsWith('/') ? item.img : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img)}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
+                    <div className="flex-1 flex flex-col">
+                      <h3 className="font-bold text-sm leading-tight mb-1">{item.name}</h3>
+                      <span className="text-brand-accent font-extrabold text-sm mb-2">{item.price}</span>
+                      <div className="flex items-center justify-between mt-auto">
+                        <div className="flex items-center gap-3 bg-black/50 rounded-lg px-2 py-1">
+                          <button onClick={() => updateQuantity(item.cartId, -1)} className="text-white/70 hover:text-white"><Minus size={14} /></button>
+                          <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.cartId, 1)} className="text-white/70 hover:text-white"><Plus size={14} /></button>
+                        </div>
+                        <button onClick={() => removeFromCart(item.cartId)} className="text-red-400 hover:text-red-300 p-1">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-6 border-t border-white/10 bg-black/20">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-brand-muted font-semibold">Total estimado</span>
+                  <span className="text-2xl font-extrabold text-white">{formatPrice(cartTotal)}</span>
+                </div>
+                <button 
+                  onClick={handleWhatsAppCheckout}
+                  className="w-full bg-[#25D366] text-white py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider transition-transform hover:scale-[1.02] hover:opacity-90 shadow-[0_0_20px_rgba(37,211,102,0.3)] flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={20} />
+                  ENVIAR PEDIDO POR WHATSAPP
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating WhatsApp Button */}
+      <a 
+        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("¡Hola! Vengo de la tienda online y tengo una consulta.")}`}
+        target="_blank"
+        rel="noreferrer"
+        className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:scale-110 transition-transform duration-300 flex items-center justify-center"
+        aria-label="Contactar por WhatsApp"
+      >
+        <MessageCircle size={32} />
+      </a>
     </div>
   );
 }
