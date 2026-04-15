@@ -288,8 +288,10 @@ export default function App() {
     setCart(prev => prev.filter(item => item.cartId !== cartId));
   };
 
-  const parsePrice = (priceStr: string) => {
-    const numericStr = priceStr.replace(/[^0-9]/g, '');
+  const parsePrice = (priceVal: any) => {
+    if (typeof priceVal === 'number') return priceVal;
+    if (!priceVal) return 0;
+    const numericStr = String(priceVal).replace(/[^0-9]/g, '');
     return parseInt(numericStr, 10) || 0;
   };
 
@@ -538,7 +540,7 @@ export default function App() {
               ) : (
                 cart.map((item) => (
                   <div key={item.cartId} className="flex gap-4 bg-black/30 p-4 rounded-xl border border-white/5">
-                    <img src={item.img.startsWith('http') || item.img.startsWith('/') ? item.img : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img)}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
+                    <img src={item.img && typeof item.img === 'string' && (item.img.startsWith('http') || item.img.startsWith('/') || item.img.startsWith('data:')) ? item.img : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img || item.name || 'Item')}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
                     <div className="flex-1 flex flex-col">
                       <h3 className="font-bold text-sm leading-tight mb-1">{item.name}</h3>
                       <span className="text-brand-accent font-extrabold text-sm mb-2">{item.price}</span>
