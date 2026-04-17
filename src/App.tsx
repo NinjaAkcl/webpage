@@ -14,6 +14,7 @@ interface Product {
   discountBadge?: string;
   img: string;
   images?: string[];
+  category?: string;
 }
 
 interface CartItem extends Product {
@@ -22,18 +23,23 @@ interface CartItem extends Product {
 }
 
 const INITIAL_PRODUCTS: Product[] = [
-  { name: 'Organizador de Escritorio Minimal', desc: 'Porta lápices y herramientas con diseño compacto. Ideal para escritorio o estudio.', price: '$50,000', img: 'Foto+Organizador' },
-  { name: 'Bandeja Organizadora "Wave"', desc: 'Bandeja multipropósito con compartimentos para accesorios, herramientas o PC.', price: '$50,000', img: 'Foto+Bandeja+Wave' },
-  { name: 'Colgante Arco Minimalista', desc: 'Diseño geométrico moderno, liviano y elegante. Diferentes colores disponibles.', price: '$50,000', img: 'Foto+Colgante' },
-  { name: 'Figura Coleccionable Articulada', desc: 'Personaje con piezas móviles y gran detalle. Ideal para colección o decoración.', price: '$50,000', img: 'Foto+Figura' },
-  { name: 'Set de Ajedrez Impreso 3D', desc: 'Piezas completas + tablero. Perfecto para jugar o exhibir.', price: '$50,000', img: 'Foto+Ajedrez' },
-  { name: 'Soporte Articulado para Celular', desc: 'Brazo ajustable para sostener el teléfono en escritorio. Útil para grabar o contenido.', price: '$50,000', img: 'Foto+Soporte' },
+  { name: 'Organizador de Escritorio Minimal', desc: 'Porta lápices y herramientas con diseño compacto. Ideal para escritorio o estudio.', price: '$50,000', img: 'Foto+Organizador', category: 'Oficina' },
+  { name: 'Bandeja Organizadora "Wave"', desc: 'Bandeja multipropósito con compartimentos para accesorios, herramientas o PC.', price: '$50,000', img: 'Foto+Bandeja+Wave', category: 'Oficina' },
+  { name: 'Colgante Arco Minimalista', desc: 'Diseño geométrico moderno, liviano y elegante. Diferentes colores disponibles.', price: '$50,000', img: 'Foto+Colgante', category: 'Accesorios' },
+  { name: 'Figura Coleccionable Articulada', desc: 'Personaje con piezas móviles y gran detalle. Ideal para colección o decoración.', price: '$50,000', img: 'Foto+Figura', category: 'Coleccionables' },
+  { name: 'Set de Ajedrez Impreso 3D', desc: 'Piezas completas + tablero. Perfecto para jugar o exhibir.', price: '$50,000', img: 'Foto+Ajedrez', category: 'Juegos' },
+  { name: 'Soporte Articulado para Celular', desc: 'Brazo ajustable para sostener el teléfono en escritorio. Útil para grabar o contenido.', price: '$50,000', img: 'Foto+Soporte', category: 'Accesorios' },
 ];
 
-const ProductCard: React.FC<{ p: Product; onClick: () => void; onAdd: (p: Product) => void }> = ({ p, onClick, onAdd }) => {
+const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void }) {
   const images = p.images && p.images.length > 0 ? p.images : [p.img];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [currentIndex]);
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,7 +71,7 @@ const ProductCard: React.FC<{ p: Product; onClick: () => void; onAdd: (p: Produc
   return (
     <div 
       className="bg-brand-card rounded-2xl overflow-hidden flex flex-col border border-white/5 hover:border-brand-accent/30 transition-all duration-500 ease-out hover:shadow-[0_10px_40px_-10px_rgba(0,255,136,0.2)] hover:-translate-y-2 cursor-pointer group"
-      onClick={onClick}
+      onClick={() => onClick(p)}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/20">
         {p.discountBadge && (
@@ -74,10 +80,15 @@ const ProductCard: React.FC<{ p: Product; onClick: () => void; onAdd: (p: Produc
             {p.discountBadge}
           </div>
         )}
+        {!imgLoaded && (
+          <div className="absolute inset-0 bg-white/5 animate-pulse" />
+        )}
         <img 
           src={displaySrc} 
           alt={p.name} 
-          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110" 
+          loading="lazy"
+          onLoad={() => setImgLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 ${imgLoaded ? 'opacity-100' : 'opacity-0 scale-105'}`} 
           referrerPolicy="no-referrer" 
         />
         {images.length > 1 && (
@@ -130,12 +141,17 @@ const ProductCard: React.FC<{ p: Product; onClick: () => void; onAdd: (p: Produc
       </div>
     </div>
   );
-}
+});
 
-const ProductModal: React.FC<{ p: Product; onClose: () => void; onAdd: (p: Product) => void }> = ({ p, onClose, onAdd }) => {
+const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p: Product; onClose: () => void; onAdd: (p: Product) => void }) {
   const images = p.images && p.images.length > 0 ? p.images : [p.img];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [currentIndex]);
 
   const handleAdd = () => {
     onAdd(p);
@@ -181,10 +197,17 @@ const ProductModal: React.FC<{ p: Product; onClose: () => void; onAdd: (p: Produ
               {p.discountBadge}
             </div>
           )}
+          {!imgLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin" />
+            </div>
+          )}
           <img 
             src={displaySrc} 
             alt={p.name} 
-            className="w-full h-full object-contain max-h-[500px]" 
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+            className={`w-full h-full object-contain max-h-[500px] transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} 
             referrerPolicy="no-referrer" 
           />
           {images.length > 1 && (
@@ -247,7 +270,7 @@ const ProductModal: React.FC<{ p: Product; onClose: () => void; onAdd: (p: Produ
       </div>
     </div>
   );
-}
+});
 
 export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -255,12 +278,25 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
+  // Categories State
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+
+  // Categorías calculadas
+  const categories = React.useMemo(() => {
+    return ['Todos', ...Array.from(new Set(products.map(p => p.category || 'Otros')))];
+  }, [products]);
+
+  // Productos filtrados calculados
+  const filteredProducts = React.useMemo(() => {
+    return products.filter((p) => selectedCategory === 'Todos' || (p.category || 'Otros') === selectedCategory);
+  }, [products, selectedCategory]);
+
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartIsAnimating, setCartIsAnimating] = useState(false);
 
-  const addToCart = (product: Product) => {
+  const addToCart = React.useCallback((product: Product) => {
     setCart(prev => {
       const matchBy = product.id ? (item: CartItem) => item.id === product.id : (item: CartItem) => item.name === product.name;
       const existingItem = prev.find(matchBy);
@@ -273,20 +309,20 @@ export default function App() {
     
     setCartIsAnimating(true);
     setTimeout(() => setCartIsAnimating(false), 300);
-  };
+  }, []);
 
-  const updateQuantity = (cartId: string, delta: number) => {
+  const updateQuantity = React.useCallback((cartId: string, delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.cartId === cartId) {
         return { ...item, quantity: Math.max(1, item.quantity + delta) };
       }
       return item;
     }));
-  };
+  }, []);
 
-  const removeFromCart = (cartId: string) => {
+  const removeFromCart = React.useCallback((cartId: string) => {
     setCart(prev => prev.filter(item => item.cartId !== cartId));
-  };
+  }, []);
 
   const parsePrice = (priceVal: any) => {
     if (typeof priceVal === 'number') return priceVal;
@@ -298,7 +334,7 @@ export default function App() {
   const cartTotal = cart.reduce((sum, item) => sum + (parsePrice(item.price) * item.quantity), 0);
   const formatPrice = (num: number) => `$${num.toLocaleString('es-AR')}`;
 
-  const handleWhatsAppCheckout = () => {
+  const handleWhatsAppCheckout = React.useCallback(() => {
     if (cart.length === 0) return;
     let message = `¡Hola! Quiero realizar el siguiente pedido:\n\n`;
     cart.forEach(item => {
@@ -306,7 +342,7 @@ export default function App() {
     });
     message += `\n*Total estimado: ${formatPrice(cartTotal)}*\n\n¿Tienen stock y cómo coordinamos el pago/envío?`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
-  };
+  }, [cart, cartTotal]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
@@ -340,6 +376,10 @@ export default function App() {
             <img 
               src="/logo.png" 
               alt="Next Layer Logo" 
+              width="128"
+              height="128"
+              // @ts-ignore
+              fetchPriority="high"
               className="h-24 md:h-32 w-auto object-contain"
             />
           </div>
@@ -411,7 +451,11 @@ export default function App() {
           <img 
             src="https://placehold.co/500x400/151515/37d380?text=Foto+Impresora+y+Florero" 
             alt="Impresora 3D Next Layer" 
-            className="max-w-full h-auto rounded-lg" 
+            width="500"
+            height="400"
+            // @ts-ignore
+            fetchPriority="high"
+            className="w-full max-w-[500px] h-auto rounded-lg object-cover" 
             referrerPolicy="no-referrer" 
           />
         </div>
@@ -433,15 +477,35 @@ export default function App() {
       </section>
 
       <section id="productos" className="pb-20">
-        <h2 className="text-center text-3xl font-extrabold text-brand-accent my-15 uppercase tracking-[2px]">
+        <h2 className="text-center text-3xl font-extrabold text-brand-accent my-10 uppercase tracking-[2px]">
           Productos
         </h2>
+        
+        {/* Filtros de categorías */}
+        <div className="flex flex-wrap justify-center gap-3 mb-10">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${
+                selectedCategory === cat 
+                  ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.3)]' 
+                  : 'bg-black/50 text-white border border-white/10 hover:border-brand-accent hover:text-brand-accent'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {loading ? (
             <div className="col-span-full text-center py-10 text-brand-muted">Cargando productos...</div>
-          ) : products.map((p, i) => (
-            <ProductCard key={p.id || i} p={p} onClick={() => setSelectedProduct(p)} onAdd={addToCart} />
-          ))}
+          ) : (
+            filteredProducts.map((p, i) => (
+              <ProductCard key={p.id || i} p={p} onClick={setSelectedProduct} onAdd={addToCart} />
+            ))
+          )}
         </div>
       </section>
 
@@ -453,61 +517,36 @@ export default function App() {
           ¿Tenés un proyecto en mente? Estamos acá para ayudarte
         </p>
         
-        <div className="flex flex-col md:flex-row gap-15">
-          <div className="flex-1 text-[15px]">
-            <p className="mb-5">Utiliza las siguientes vías de contacto, o rellena el formulario.</p>
+        <div className="flex justify-center">
+          <div className="text-[15px] flex flex-col md:flex-row gap-8 md:gap-16 items-center text-center">
             
-            <div className="mb-4">
-              <span className="block mb-1">Vía E-mail</span>
-              <a href="mailto:nextlayer@gmail.com" className="text-brand-accent font-semibold hover:underline">
+            <div className="flex flex-col items-center">
+              <span className="block mb-2 text-brand-muted uppercase tracking-widest text-xs font-bold">Vía E-mail</span>
+              <a href="mailto:nextlayer@gmail.com" className="text-brand-accent text-lg font-semibold hover:underline">
                 nextlayer@gmail.com
               </a>
             </div>
-            <div className="mb-4">
-              <span className="block mb-1">En nuestro Instagram</span>
-              <a href="https://instagram.com/nextlayer1" target="_blank" rel="noreferrer" className="text-brand-accent font-semibold hover:underline">
-                @nextlayer1
+            
+            <div className="hidden md:block w-px h-12 bg-white/10"></div>
+            
+            <div className="flex flex-col items-center">
+              <span className="block mb-2 text-brand-muted uppercase tracking-widest text-xs font-bold">En nuestro Instagram</span>
+              <a href="https://instagram.com/nextlayer.3d" target="_blank" rel="noreferrer" className="text-brand-accent text-lg font-semibold hover:underline">
+                @nextlayer.3d
               </a>
             </div>
-            <div className="mb-4">
-              <span className="block mb-1">Por WhatsApp</span>
-              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="text-brand-accent font-semibold hover:underline flex items-center gap-2">
-                <MessageCircle size={16} />
+            
+            <div className="hidden md:block w-px h-12 bg-white/10"></div>
+
+            <div className="flex flex-col items-center">
+              <span className="block mb-2 text-brand-muted uppercase tracking-widest text-xs font-bold">Por WhatsApp</span>
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="text-brand-accent text-lg font-semibold hover:underline flex items-center gap-2">
+                <MessageCircle size={20} />
                 351 340-3129
               </a>
             </div>
+            
           </div>
-          
-          <form className="flex-1 flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
-            <input 
-              type="text" 
-              placeholder="Escribe tu nombre" 
-              required 
-              className="w-full p-4 rounded bg-white text-black text-sm placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-accent" 
-            />
-            <input 
-              type="email" 
-              placeholder="Escribe tu e-mail" 
-              required 
-              className="w-full p-4 rounded bg-white text-black text-sm placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-accent" 
-            />
-            <input 
-              type="tel" 
-              placeholder="Escribe tu teléfono (Opcional)" 
-              className="w-full p-4 rounded bg-white text-black text-sm placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-accent" 
-            />
-            <textarea 
-              placeholder="Escribí tu mensaje" 
-              required 
-              className="w-full p-4 rounded bg-white text-black text-sm placeholder:text-gray-600 h-[120px] resize-none focus:outline-none focus:ring-2 focus:ring-brand-accent"
-            ></textarea>
-            <button 
-              type="submit" 
-              className="self-end mt-2 bg-brand-accent text-black px-6 py-3 rounded-full font-extrabold text-sm uppercase transition-transform hover:scale-105 hover:opacity-90"
-            >
-              ENVIAR MENSAJE
-            </button>
-          </form>
         </div>
       </section>
 
