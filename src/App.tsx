@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
-import { collection, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn } from 'lucide-react';
+import { collection, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
+import { db, auth } from './firebase';
 
 const WHATSAPP_NUMBER = "5493513403129";
 
@@ -31,7 +32,7 @@ const INITIAL_PRODUCTS: Product[] = [
   { name: 'Soporte Articulado para Celular', desc: 'Brazo ajustable para sostener el teléfono en escritorio. Útil para grabar o contenido.', price: '$50,000', img: 'Foto+Soporte', category: 'Accesorios' },
 ];
 
-const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void }) {
+const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdmin, onEdit, onDelete }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void; userAdmin?: boolean; onEdit?: (p: Product) => void; onDelete?: (id: string) => void; }) {
   const images = p.images && p.images.length > 0 ? p.images : [p.img];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
@@ -78,6 +79,22 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd }: { p: 
           <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-[0_2px_10px_rgba(239,68,68,0.5)] flex items-center gap-1">
             <Tag size={10} />
             {p.discountBadge}
+          </div>
+        )}
+        {userAdmin && (
+          <div className="absolute top-3 right-3 z-20 flex gap-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEdit && onEdit(p); }}
+              className="bg-black/70 text-white p-2 rounded-full hover:bg-brand-accent hover:text-black transition-colors"
+            >
+              <Edit2 size={16} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); p.id && onDelete && onDelete(p.id); }}
+              className="bg-black/70 text-red-400 p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         )}
         {!imgLoaded && (
@@ -291,6 +308,75 @@ export default function App() {
     return products.filter((p) => selectedCategory === 'Todos' || (p.category || 'Otros') === selectedCategory);
   }, [products, selectedCategory]);
 
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      setUser(user);
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      setAuthError(null);
+      const provider = new GoogleAuthProvider();
+      // Force account selection to avoid hanging promises if something is stuck
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error("Error logging in:", error);
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' || error.message?.includes('INTERNAL ASSERTION FAILED')) {
+        setAuthError("El navegador bloqueó la ventana de inicio de sesión. Por favor, haz clic en el ícono de 'Abrir en nueva pestaña' (arriba a la derecha de esta vista previa) para poder iniciar sesión correctamente.");
+      } else {
+        setAuthError("Error al iniciar sesión: " + error.message);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  // Admin Editor State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+
+  const isAdmin = user?.email === "elninja732@gmail.com";
+
+  const handleSaveProduct = async (productToSave: Product) => {
+    try {
+      if (isAddingNew) {
+        await addDoc(collection(db, 'products'), productToSave);
+      } else if (productToSave.id) {
+        const productRef = doc(db, 'products', productToSave.id);
+        const { id, ...dataToSave } = productToSave;
+        await updateDoc(productRef, dataToSave as any);
+      }
+      setEditingProduct(null);
+      setIsAddingNew(false);
+    } catch (error) {
+      console.error("Error saving product:", error);
+      alert("Hubo un error al guardar el producto. Revisa los permisos.");
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este producto?")) return;
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Hubo un error al eliminar.");
+    }
+  };
+
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -370,6 +456,14 @@ export default function App() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-5">
+      {authError && (
+        <div className="fixed top-0 left-0 w-full z-[100] bg-red-500/90 backdrop-blur-sm text-white p-4 shadow-2xl flex items-center justify-between animate-in slide-in-from-top mt-0">
+          <p className="font-semibold text-sm max-w-[1200px] mx-auto text-center flex-1">{authError}</p>
+          <button onClick={() => setAuthError(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+      )}
       <header className="py-8 relative z-50">
         <nav className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -389,6 +483,25 @@ export default function App() {
             <a href="#" className="text-brand-accent border-b-2 border-brand-accent pb-1 transition-colors">Inicio</a>
             <a href="#productos" className="hover:text-brand-accent hover:border-b-2 hover:border-brand-accent pb-1 transition-colors border-b-2 border-transparent">Productos</a>
             <a href="#contacto" className="hover:text-brand-accent hover:border-b-2 hover:border-brand-accent pb-1 transition-colors border-b-2 border-transparent">Contacto</a>
+            
+            {user ? (
+              <button 
+                onClick={handleLogout}
+                title="Cerrar sesión (Admin)"
+                className="text-white hover:text-red-400 transition-colors p-2"
+              >
+                <LogOut size={20} />
+              </button>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                title="Acceso Admin"
+                className="text-white/30 hover:text-white transition-colors p-2"
+              >
+                <LogIn size={20} />
+              </button>
+            )}
+
             <button 
               onClick={() => setIsCartOpen(true)}
               className={`relative p-2 text-white hover:text-brand-accent transition-all duration-300 ${cartIsAnimating ? 'scale-125 text-brand-accent' : ''}`}
@@ -482,20 +595,34 @@ export default function App() {
         </h2>
         
         {/* Filtros de categorías */}
-        <div className="flex flex-wrap justify-center gap-3 mb-10">
-          {categories.map((cat) => (
+        <div className="flex flex-col items-center gap-6 mb-10">
+          <div className="flex flex-wrap justify-center gap-3">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${
+                  selectedCategory === cat 
+                    ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.3)]' 
+                    : 'bg-black/50 text-white border border-white/10 hover:border-brand-accent hover:text-brand-accent'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          
+          {isAdmin && (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${
-                selectedCategory === cat 
-                  ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.3)]' 
-                  : 'bg-black/50 text-white border border-white/10 hover:border-brand-accent hover:text-brand-accent'
-              }`}
+              onClick={() => {
+                setEditingProduct({ name: '', desc: '', price: '', img: '', category: '' });
+                setIsAddingNew(true);
+              }}
+              className="bg-brand-accent text-black px-6 py-2 rounded-full font-extrabold text-sm uppercase flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_15px_rgba(0,255,136,0.2)]"
             >
-              {cat}
+              <Plus size={16} /> NUEVO PRODUCTO
             </button>
-          ))}
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -503,7 +630,15 @@ export default function App() {
             <div className="col-span-full text-center py-10 text-brand-muted">Cargando productos...</div>
           ) : (
             filteredProducts.map((p, i) => (
-              <ProductCard key={p.id || i} p={p} onClick={setSelectedProduct} onAdd={addToCart} />
+              <ProductCard 
+                key={p.id || i} 
+                p={p} 
+                onClick={setSelectedProduct} 
+                onAdd={addToCart} 
+                userAdmin={isAdmin}
+                onEdit={setEditingProduct}
+                onDelete={handleDeleteProduct}
+              />
             ))
           )}
         </div>
@@ -553,6 +688,73 @@ export default function App() {
       {/* Product Detail Modal */}
       {selectedProduct && (
         <ProductModal p={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />
+      )}
+
+      {/* Admin Product Editor Modal */}
+      {editingProduct && isAdmin && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-brand-card border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+            <button onClick={() => { setEditingProduct(null); setIsAddingNew(false); }} className="absolute top-4 right-4 text-white/70 hover:text-white p-2">
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-extrabold text-brand-accent mb-6 uppercase tracking-wider">
+              {isAddingNew ? 'Nuevo Producto' : 'Editar Producto'}
+            </h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Nombre</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.name} 
+                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Precio (ej. $50,000)</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.price} 
+                  onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Categoría</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.category || ''} 
+                  onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+                  placeholder="Ej. Oficina, Juegos..."
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">URL de la Imagen Principal</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.img} 
+                  onChange={(e) => setEditingProduct({...editingProduct, img: e.target.value})}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Descripción</label>
+                <textarea 
+                  value={editingProduct.desc} 
+                  onChange={(e) => setEditingProduct({...editingProduct, desc: e.target.value})}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors resize-none h-24"
+                />
+              </div>
+              <button 
+                onClick={() => handleSaveProduct(editingProduct)}
+                className="mt-4 w-full bg-brand-accent text-black py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider hover:opacity-90 transition-opacity"
+              >
+                Guardar Producto
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cart Drawer */}

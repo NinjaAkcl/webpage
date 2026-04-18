@@ -15,15 +15,15 @@ service cloud.firestore {
     //
     // ===============================================================
 
-    function isAuthenticated() {
-      return request.auth != null;
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == "elninja732@gmail.com";
     }
 
     match /products/{productId} {
       // Allow public read so the landing page can display products to visitors
       allow read: if true;
-      // Only allow authenticated users to modify products (can be done via Firebase Console)
-      allow write: if isAuthenticated();
+      // Only allow admin (specific email) to modify products
+      allow write: if isAdmin();
     }
   }
 }
