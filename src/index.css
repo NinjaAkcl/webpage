@@ -11,6 +11,8 @@
 
 body {
   background-color: var(--color-brand-bg);
+  background-image: radial-gradient(circle at 50% 0%, #15221b 0%, var(--color-brand-bg) 60%);
+  background-attachment: fixed;
   color: white;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

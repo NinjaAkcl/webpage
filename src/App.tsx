@@ -526,8 +526,19 @@ export default function App() {
   }, []);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-5">
-      {authError && (
+    <div className="relative min-h-screen">
+      {/* Ambient background glow */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-brand-accent/5 rounded-full blur-[150px]" />
+        {/* Giant Watermark Logo/Text */}
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 text-[12vw] font-extrabold text-white/[0.02] tracking-tighter whitespace-nowrap uppercase select-none pointer-events-none">
+          NEXT LAYER
+        </div>
+      </div>
+
+      <div className="max-w-[1200px] mx-auto px-5 relative h-full">
+        {authError && (
         <div className="fixed top-0 left-0 w-full z-[100] bg-red-500/90 backdrop-blur-sm text-white p-4 shadow-2xl flex items-center justify-between animate-in slide-in-from-top mt-0">
           <p className="font-semibold text-sm max-w-[1200px] mx-auto text-center flex-1">{authError}</p>
           <button onClick={() => setAuthError(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
@@ -631,7 +642,8 @@ export default function App() {
             VER CATÁLOGO
           </button>
         </div>
-        <div className="flex-1 flex justify-end">
+        <div className="flex-1 flex justify-end relative">
+          <div className="absolute inset-0 bg-brand-accent/30 blur-[80px] rounded-full z-0 opacity-50 hidden md:block" />
           <img 
             src="https://placehold.co/500x400/151515/37d380?text=Foto+Impresora+y+Florero" 
             alt="Impresora 3D Next Layer" 
@@ -639,7 +651,7 @@ export default function App() {
             height="400"
             // @ts-ignore
             fetchPriority="high"
-            className="w-full max-w-[500px] h-auto rounded-lg object-cover" 
+            className="w-full max-w-[500px] h-auto rounded-xl object-cover relative z-10 shadow-2xl border border-white/10" 
             referrerPolicy="no-referrer" 
           />
         </div>
@@ -1017,6 +1029,7 @@ export default function App() {
       >
         <MessageCircle size={32} />
       </a>
+    </div>
     </div>
   );
 }
