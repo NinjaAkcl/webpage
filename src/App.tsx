@@ -539,7 +539,7 @@ export default function App() {
         <nav className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <img 
-              src="/logo.png" 
+              src="https://i.ibb.co/ybwKDtj/Mesa-de-trabajo-3-8.png" 
               alt="Next Layer Logo" 
               width="128"
               height="128"
