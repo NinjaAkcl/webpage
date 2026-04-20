@@ -32,8 +32,24 @@ const INITIAL_PRODUCTS: Product[] = [
   { name: 'Soporte Articulado para Celular', desc: 'Brazo ajustable para sostener el teléfono en escritorio. Útil para grabar o contenido.', price: '$50,000', img: 'Foto+Soporte', category: 'Accesorios' },
 ];
 
+const parseProductPrice = (priceVal: any) => {
+  if (typeof priceVal === 'number') return priceVal;
+  if (!priceVal) return 0;
+  const numericStr = String(priceVal).replace(/[^0-9]/g, '');
+  return parseInt(numericStr, 10) || 0;
+};
+
+const getDiscountPercent = (price: any, originalPrice: any) => {
+  const p = parseProductPrice(price);
+  const o = parseProductPrice(originalPrice);
+  if (o > 0 && o > p) {
+    return Math.round(((o - p) / o) * 100);
+  }
+  return 0;
+};
+
 const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdmin, onEdit, onDelete }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void; userAdmin?: boolean; onEdit?: (p: Product) => void; onDelete?: (id: string) => void; }) {
-  const images = p.images && p.images.length > 0 ? p.images : [p.img];
+  const images = Array.from(new Set([p.img, ...(p.images || [])])).filter(Boolean);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -75,10 +91,10 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
       onClick={() => onClick(p)}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/20">
-        {p.discountBadge && (
-          <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-[0_2px_10px_rgba(239,68,68,0.5)] flex items-center gap-1">
+        {getDiscountPercent(p.price, p.originalPrice) > 0 && (
+          <div className="absolute top-3 left-3 z-10 bg-brand-accent text-black text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-[0_2px_10px_rgba(0,255,136,0.5)] flex items-center gap-1">
             <Tag size={10} />
-            {p.discountBadge}
+            {getDiscountPercent(p.price, p.originalPrice)}% OFF
           </div>
         )}
         {userAdmin && (
@@ -161,7 +177,7 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
 });
 
 const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p: Product; onClose: () => void; onAdd: (p: Product) => void }) {
-  const images = p.images && p.images.length > 0 ? p.images : [p.img];
+  const images = Array.from(new Set([p.img, ...(p.images || [])])).filter(Boolean);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -208,10 +224,10 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
 
         {/* Left: Image Gallery */}
         <div className="w-full md:w-1/2 relative bg-black/30 min-h-[300px] md:min-h-[400px] flex items-center justify-center">
-          {p.discountBadge && (
-            <div className="absolute top-4 left-4 z-10 bg-red-500 text-white text-xs font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-[0_2px_15px_rgba(239,68,68,0.5)] flex items-center gap-1.5">
+          {getDiscountPercent(p.price, p.originalPrice) > 0 && (
+            <div className="absolute top-4 left-4 z-10 bg-brand-accent text-black text-xs font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-[0_2px_15px_rgba(0,255,136,0.5)] flex items-center gap-1.5">
               <Tag size={14} />
-              {p.discountBadge}
+              {getDiscountPercent(p.price, p.originalPrice)}% OFF
             </div>
           )}
           {!imgLoaded && (
@@ -347,8 +363,63 @@ export default function App() {
   // Admin Editor State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const isAdmin = user?.email === "elninja732@gmail.com";
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isMain: boolean = true) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
+    if (!apiKey) {
+      alert("Falta configurar VITE_IMGBB_API_KEY en Vercel/Entorno para poder subir imágenes directamente.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const uploadPromises = files.map((file: File) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        return fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+          method: 'POST',
+          body: formData,
+        }).then(res => res.json());
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const newUrls = results.filter(data => data.success).map(data => data.data.url);
+
+      if (newUrls.length === 0) {
+        alert("Error al subir imagen(es). Revisa ImgBB.");
+        return;
+      }
+
+      setEditingProduct(prev => {
+        if (!prev) return null;
+        if (isMain) {
+          return { ...prev, img: newUrls[0] };
+        } else {
+          return { ...prev, images: [...(prev.images || []), ...newUrls] };
+        }
+      });
+    } catch (error) {
+      console.error("Error al subir imagen:", error);
+      alert("Error al subir imagen. Revisa la consola o tu conexión.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeGalleryImage = (indexToRemove: number) => {
+    setEditingProduct(prev => {
+      if (!prev) return null;
+      const newImages = [...(prev.images || [])];
+      newImages.splice(indexToRemove, 1);
+      return { ...prev, images: newImages };
+    });
+  };
 
   const handleSaveProduct = async (productToSave: Product) => {
     try {
@@ -417,7 +488,7 @@ export default function App() {
     return parseInt(numericStr, 10) || 0;
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (parsePrice(item.price) * item.quantity), 0);
+  const cartTotal = cart.reduce((sum, item) => sum + (parseProductPrice(item.price) * item.quantity), 0);
   const formatPrice = (num: number) => `$${num.toLocaleString('es-AR')}`;
 
   const handleWhatsAppCheckout = React.useCallback(() => {
@@ -595,34 +666,34 @@ export default function App() {
         </h2>
         
         {/* Filtros de categorías */}
-        <div className="flex flex-col items-center gap-6 mb-10">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider transition-all duration-300 ${
-                  selectedCategory === cat 
-                    ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.3)]' 
-                    : 'bg-black/50 text-white border border-white/10 hover:border-brand-accent hover:text-brand-accent'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          
+        <div className="flex flex-col items-center gap-8 mb-12">
           {isAdmin && (
             <button
               onClick={() => {
                 setEditingProduct({ name: '', desc: '', price: '', img: '', category: '' });
                 setIsAddingNew(true);
               }}
-              className="bg-brand-accent text-black px-6 py-2 rounded-full font-extrabold text-sm uppercase flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_15px_rgba(0,255,136,0.2)]"
+              className="bg-brand-accent text-black px-8 py-3 rounded-full font-extrabold text-sm uppercase flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,136,0.2)] hover:shadow-[0_0_30px_rgba(0,255,136,0.4)]"
             >
-              <Plus size={16} /> NUEVO PRODUCTO
+              <Plus size={18} /> AÑADIR NUEVO PRODUCTO
             </button>
           )}
+
+          <div className="flex flex-wrap justify-center gap-2 p-1.5 bg-black/30 border border-white/5 rounded-full shadow-inner">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-5 py-2 rounded-full text-[13px] font-bold uppercase tracking-wider transition-all duration-300 ${
+                  selectedCategory === cat 
+                    ? 'bg-brand-accent text-black shadow-[0_0_10px_rgba(0,255,136,0.3)]' 
+                    : 'bg-transparent text-white/70 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -692,66 +763,182 @@ export default function App() {
 
       {/* Admin Product Editor Modal */}
       {editingProduct && isAdmin && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-brand-card border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-            <button onClick={() => { setEditingProduct(null); setIsAddingNew(false); }} className="absolute top-4 right-4 text-white/70 hover:text-white p-2">
+        <div className="fixed inset-0 z-[70] flex justify-center items-center p-2 sm:p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
+          <div className="bg-brand-card/95 border border-white/10 rounded-2xl w-full max-w-5xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden my-auto max-h-full">
+            <button 
+              onClick={() => { setEditingProduct(null); setIsAddingNew(false); }} 
+              className="absolute top-4 right-4 z-40 bg-black/50 text-white/70 hover:text-white p-2 rounded-full hover:bg-brand-accent hover:text-black transition-colors"
+            >
               <X size={24} />
             </button>
-            <h2 className="text-2xl font-extrabold text-brand-accent mb-6 uppercase tracking-wider">
-              {isAddingNew ? 'Nuevo Producto' : 'Editar Producto'}
-            </h2>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Nombre</label>
-                <input 
-                  type="text" 
-                  value={editingProduct.name} 
-                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
-                />
+            
+            {/* Left Side: Live Preview (Hidden on small screens) */}
+            <div className="hidden md:flex flex-col w-1/3 min-w-[300px] border-r border-white/10 p-6 bg-black/20 gap-4 overflow-y-auto">
+              <h3 className="text-sm font-extrabold tracking-widest text-brand-muted uppercase text-center mb-2">Vista Previa</h3>
+              <div className="pointer-events-none sticky top-0">
+                <ProductCard p={editingProduct} onClick={() => {}} onAdd={() => {}} />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Precio (ej. $50,000)</label>
-                <input 
-                  type="text" 
-                  value={editingProduct.price} 
-                  onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
-                />
+            </div>
+
+            {/* Right Side: Form */}
+            <div className="flex-1 p-6 md:p-10 flex flex-col gap-6 overflow-y-auto">
+              <div className="mb-2">
+                <h2 className="text-3xl font-extrabold text-brand-accent uppercase tracking-wider mb-2">
+                  {isAddingNew ? 'Añadir Producto' : 'Editar Producto'}
+                </h2>
+                <p className="text-brand-muted text-sm border-b border-white/10 pb-4">
+                  Completa los detalles de tu producto. Los cambios se guardarán en tu base de datos y se aplicarán al instante.
+                </p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Categoría</label>
-                <input 
-                  type="text" 
-                  value={editingProduct.category || ''} 
-                  onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
-                  placeholder="Ej. Oficina, Juegos..."
-                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* General Info */}
+                <div className="flex flex-col gap-5">
+                  <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                    <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-1 items-center flex gap-2">
+                      <Tag size={14} className="text-brand-accent"/> Información Básica
+                    </h4>
+                    <div>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Nombre del Producto</label>
+                      <input 
+                        type="text" 
+                        value={editingProduct.name || ''} 
+                        onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                        className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Categoría</label>
+                      <input 
+                        type="text" 
+                        value={editingProduct.category || ''} 
+                        onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+                        placeholder="Ej. Oficina, Juegos..."
+                        className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Descripción</label>
+                      <textarea 
+                        value={editingProduct.desc || ''} 
+                        onChange={(e) => setEditingProduct({...editingProduct, desc: e.target.value})}
+                        className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors resize-none h-24"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing & Media */}
+                <div className="flex flex-col gap-5">
+                  <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                    <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-1 items-center flex gap-2">
+                      <div className="text-brand-accent font-serif pr-1">$</div> Precio y Ofertas
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Precio de Venta</label>
+                        <input 
+                          type="text" 
+                          value={editingProduct.price || ''} 
+                          onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                          placeholder="ej. $40,000"
+                          className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors font-bold text-brand-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider flex items-center justify-between">
+                          Original
+                          {getDiscountPercent(editingProduct.price, editingProduct.originalPrice) > 0 && (
+                            <span className="text-brand-accent text-[9px] bg-brand-accent/20 px-1 rounded truncate">
+                              -{getDiscountPercent(editingProduct.price, editingProduct.originalPrice)}%
+                            </span>
+                          )}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={editingProduct.originalPrice || ''} 
+                          onChange={(e) => setEditingProduct({...editingProduct, originalPrice: e.target.value})}
+                          placeholder="Ej. $50,000"
+                          className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                    <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-1 items-center flex gap-2">
+                      <Edit2 size={14} className="text-brand-accent"/> Imágenes
+                    </h4>
+                    <div>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Foto Principal (URL / Subir)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={editingProduct.img || ''} 
+                          onChange={(e) => setEditingProduct({...editingProduct, img: e.target.value})}
+                          placeholder="Ingresa URL"
+                          className="flex-1 bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
+                        />
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={(e) => handleImageUpload(e, true)} 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                            disabled={uploadingImage}
+                          />
+                          <div className={`h-full px-4 rounded-lg flex items-center justify-center font-bold text-xs uppercase tracking-wider ${uploadingImage ? 'bg-brand-muted text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}>
+                            {uploadingImage ? '...' : 'SUBIR'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <label className="flex justify-between items-center text-[11px] font-bold text-brand-muted mb-2 uppercase tracking-wider border-t border-white/10 pt-4">
+                        <span>Galería Extra</span>
+                        <div className="relative cursor-pointer text-brand-accent hover:text-white transition-colors overflow-hidden font-extrabold bg-brand-accent/10 px-2 py-1 rounded">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => handleImageUpload(e, false)} 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                            disabled={uploadingImage}
+                          />
+                          + FOTOS
+                        </div>
+                      </label>
+                      {(editingProduct.images && editingProduct.images.length > 0) ? (
+                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                          {editingProduct.images.map((imgUrl, idx) => (
+                            <div key={idx} className="relative aspect-square bg-black/50 rounded border border-white/10 group overflow-hidden shadow-inner">
+                              <img src={imgUrl} alt="galería" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                              <button 
+                                onClick={() => removeGalleryImage(idx)}
+                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-white/30 italic mt-2 text-center p-3 border border-dashed border-white/10 rounded-lg">No hay fotos adicionales.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">URL de la Imagen Principal</label>
-                <input 
-                  type="text" 
-                  value={editingProduct.img} 
-                  onChange={(e) => setEditingProduct({...editingProduct, img: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors"
-                />
+
+              <div className="mt-auto pt-6 border-t border-white/10">
+                <button 
+                  onClick={() => handleSaveProduct(editingProduct)}
+                  className="w-full bg-brand-accent text-black py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider hover:scale-[1.02] shadow-[0_5px_20px_rgba(0,255,136,0.3)] transition-all duration-300"
+                >
+                  GUARDAR CAMBIOS EN LA TIENDA
+                </button>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1 uppercase tracking-wider">Descripción</label>
-                <textarea 
-                  value={editingProduct.desc} 
-                  onChange={(e) => setEditingProduct({...editingProduct, desc: e.target.value})}
-                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-brand-accent focus:outline-none transition-colors resize-none h-24"
-                />
-              </div>
-              <button 
-                onClick={() => handleSaveProduct(editingProduct)}
-                className="mt-4 w-full bg-brand-accent text-black py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider hover:opacity-90 transition-opacity"
-              >
-                Guardar Producto
-              </button>
             </div>
           </div>
         </div>
