@@ -366,6 +366,7 @@ export default function App() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showcaseImages, setShowcaseImages] = useState<string[]>(["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"]);
   const [currentShowcaseIndex, setCurrentShowcaseIndex] = useState(0);
+  const [loadedShowcaseImgs, setLoadedShowcaseImgs] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (showcaseImages.length <= 1) return;
@@ -788,17 +789,26 @@ export default function App() {
             {showcaseImages.map((src, idx) => (
               <div 
                 key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentShowcaseIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${idx === currentShowcaseIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
               >
                 {/* Fondo difuminado para rellenar (Evita el corte agresivo de object-cover) */}
                 <div 
-                  className="absolute inset-0 bg-cover bg-center blur-2xl opacity-30 scale-110" 
+                  className={`absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-125 transition-opacity duration-1000 ${loadedShowcaseImgs[idx] ? 'opacity-40' : 'opacity-0'}`} 
                   style={{ backgroundImage: `url(${src})` }}
                 />
+                
+                {!loadedShowcaseImgs[idx] && (
+                  <div className="absolute inset-0 bg-white/5 animate-pulse z-20 flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
+                  </div>
+                )}
+
                 <img 
                   src={src} 
                   alt={`Muestra ${idx + 1}`}
-                  className="w-full h-full object-contain relative z-10 p-1 md:p-4 drop-shadow-2xl" 
+                  loading="lazy"
+                  onLoad={() => setLoadedShowcaseImgs(prev => ({ ...prev, [idx]: true }))}
+                  className={`w-full h-full object-contain relative z-10 p-1 md:p-4 drop-shadow-2xl transition-all duration-[2000ms] ease-out ${idx === currentShowcaseIndex ? 'scale-100' : 'scale-[0.93]'} ${loadedShowcaseImgs[idx] ? 'opacity-100' : 'opacity-0'}`} 
                   referrerPolicy="no-referrer"
                 />
               </div>
