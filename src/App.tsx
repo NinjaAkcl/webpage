@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn } from 'lucide-react';
-import { collection, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
 
@@ -364,8 +364,72 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showcaseImages, setShowcaseImages] = useState<string[]>(["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"]);
+  const [currentShowcaseIndex, setCurrentShowcaseIndex] = useState(0);
+
+  useEffect(() => {
+    if (showcaseImages.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentShowcaseIndex(prev => (prev + 1) % showcaseImages.length);
+    }, 4000); // Rota cada 4 segundos
+    return () => clearInterval(timer);
+  }, [showcaseImages.length]);
 
   const isAdmin = user?.email === "elninja732@gmail.com";
+
+  const handleShowcaseImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
+    if (!apiKey) {
+      alert("Falta configurar VITE_IMGBB_API_KEY en Vercel/Entorno para poder subir imágenes directamente.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const uploadPromises = files.map((file: File) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        return fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+          method: 'POST',
+          body: formData,
+        }).then(res => res.json());
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const newUrls = results.filter(data => data.success).map(data => data.data.url);
+
+      if (newUrls.length > 0) {
+        const docRef = doc(db, 'products', 'site_showcase_image');
+        const currentUrls = showcaseImages[0]?.includes('placehold.co') ? [] : showcaseImages;
+        const updatedImages = [...currentUrls, ...newUrls];
+        const defaultData = { name: "site_showcase_image", desc: "Showcase Config", price: "0" };
+        
+        await updateDoc(docRef, { images: updatedImages, ...defaultData }).catch(async () => {
+             await setDoc(docRef, { images: updatedImages, ...defaultData });
+        });
+      } else {
+        alert("Error al subir imagen(es). Revisa ImgBB.");
+      }
+    } catch (error) {
+      console.error("Error al subir imagen de exhibición:", error);
+      alert("Error al subir imagen. Revisa la consola o tu conexión.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleDeleteShowcaseImage = async (index: number) => {
+    if (!window.confirm("¿Eliminar esta imagen del carrusel de exhibición?")) return;
+    const updatedImages = showcaseImages.filter((_, i) => i !== index);
+    const docRef = doc(db, 'products', 'site_showcase_image');
+    await updateDoc(docRef, { images: updatedImages });
+    if (currentShowcaseIndex >= updatedImages.length) {
+      setCurrentShowcaseIndex(Math.max(0, updatedImages.length - 1));
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isMain: boolean = true) => {
     const files = Array.from(e.target.files || []);
@@ -504,9 +568,25 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
       const productsData: Product[] = [];
+      let newShowcaseImages: string[] = [];
+      
       snapshot.forEach((doc) => {
-        productsData.push({ id: doc.id, ...doc.data() } as Product);
+        if (doc.id === 'site_showcase_image') {
+          const data = doc.data();
+          if (data.images && data.images.length > 0) {
+             newShowcaseImages = data.images;
+          } else if (data.img) {
+             newShowcaseImages = [data.img];
+          }
+        } else {
+          productsData.push({ id: doc.id, ...doc.data() } as Product);
+        }
       });
+      
+      if (newShowcaseImages.length === 0) {
+        newShowcaseImages = ["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"];
+      }
+      setShowcaseImages(newShowcaseImages);
       
       // Si no hay productos en Firebase, mostramos los iniciales por defecto
       if (productsData.length === 0) {
@@ -630,31 +710,20 @@ export default function App() {
         )}
       </header>
 
-      <section className="flex flex-col md:flex-row items-center justify-between py-20 gap-10">
-        <div className="flex-1">
-          <h1 className="text-4xl md:text-5xl font-extrabold leading-[1.1] mb-5 uppercase">
-            Impresión 3D de<br />Alta Calidad
-          </h1>
-          <p className="text-base mb-8 max-w-[400px]">
-            Transformamos tus ideas en realidad con tecnología de impresión 3D de última generación
-          </p>
-          <button className="bg-brand-accent text-black px-6 py-3 rounded-full font-extrabold text-sm uppercase transition-transform hover:scale-105 hover:opacity-90">
-            VER CATÁLOGO
-          </button>
-        </div>
-        <div className="flex-1 flex justify-end relative">
-          <div className="absolute inset-0 bg-brand-accent/30 blur-[80px] rounded-full z-0 opacity-50 hidden md:block" />
-          <img 
-            src="https://placehold.co/500x400/151515/37d380?text=Foto+Impresora+y+Florero" 
-            alt="Impresora 3D Next Layer" 
-            width="500"
-            height="400"
-            // @ts-ignore
-            fetchPriority="high"
-            className="w-full max-w-[500px] h-auto rounded-xl object-cover relative z-10 shadow-2xl border border-white/10" 
-            referrerPolicy="no-referrer" 
-          />
-        </div>
+      <section className="flex flex-col items-center justify-center py-32 text-center relative z-10 w-full max-w-4xl mx-auto">
+        <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.05] mb-6 uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white to-white/70">
+          Impresión 3D de<br />
+          <span className="text-brand-accent drop-shadow-[0_0_30px_rgba(55,211,128,0.3)]">Alta Calidad</span>
+        </h1>
+        <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto text-brand-muted font-medium">
+          Transformamos tus ideas en realidad con tecnología de última generación, precisión milimétrica y materiales premium.
+        </p>
+        <button 
+          onClick={() => document.getElementById('productos')?.scrollIntoView({ behavior: 'smooth' })}
+          className="bg-brand-accent text-black px-10 py-4 rounded-full font-extrabold tracking-widest text-sm uppercase transition-all duration-300 hover:scale-105 hover:bg-white hover:text-black shadow-[0_0_20px_rgba(55,211,128,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]"
+        >
+          VISITÁ EL CATÁLOGO
+        </button>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5 py-12">
@@ -669,6 +738,97 @@ export default function App() {
         <div className="border border-brand-accent p-8 text-center rounded bg-black/50">
           <div className="text-brand-accent text-sm font-extrabold mb-2.5 uppercase">Calidad Garantizada</div>
           <div className="text-[13px]">Materiales de primera calidad y control riguroso de acabados</div>
+        </div>
+      </section>
+
+      {/* Hero Showcase / Gallery Section */}
+      <section className="py-20 relative z-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-brand-accent/30 to-transparent" />
+        
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-extrabold uppercase tracking-[2px] text-white">
+            Nuestros <span className="text-brand-accent">Trabajos</span>
+          </h2>
+          <p className="text-brand-muted mt-3 max-w-2xl mx-auto text-sm">
+            Un vistazo a la calidad, nivel de detalle y terminación de nuestras impresiones de exhibición.
+          </p>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative group">
+          {/* Main Showcase Container */}
+          <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] bg-black/50">
+            {isAdmin && (
+              <div className="absolute top-4 right-4 z-50 flex gap-2">
+                <label className="cursor-pointer bg-brand-accent text-black font-extrabold text-xs uppercase px-4 py-2 rounded-full hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_20px_rgba(55,211,128,0.5)]">
+                  <Plus size={14} />
+                  {uploadingImage ? 'SUBIENDO...' : 'AÑADIR FOTOS'}
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    multiple
+                    onChange={handleShowcaseImageUpload}
+                    disabled={uploadingImage}
+                    className="hidden" 
+                  />
+                </label>
+                {showcaseImages[0] && !showcaseImages[0].includes('placehold.co') && (
+                  <button 
+                    onClick={() => handleDeleteShowcaseImage(currentShowcaseIndex)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-transform hover:scale-105"
+                    title="Eliminar foto actual"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-brand-accent/5 group-hover:bg-transparent transition-colors duration-500 z-20 pointer-events-none" />
+            
+            {showcaseImages.map((src, idx) => (
+              <div 
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentShowcaseIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+              >
+                {/* Fondo difuminado para rellenar (Evita el corte agresivo de object-cover) */}
+                <div 
+                  className="absolute inset-0 bg-cover bg-center blur-2xl opacity-30 scale-110" 
+                  style={{ backgroundImage: `url(${src})` }}
+                />
+                <img 
+                  src={src} 
+                  alt={`Muestra ${idx + 1}`}
+                  className="w-full h-full object-contain relative z-10 p-1 md:p-4 drop-shadow-2xl" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ))}
+
+            {/* Overlay Gradient for depth */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none z-20" />
+            
+            <div className="absolute bottom-6 md:bottom-8 left-6 md:left-8 z-30 overflow-hidden rounded-lg">
+              <div className="bg-black/80 backdrop-blur-md px-5 py-3 border border-white/10 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-400">
+                <span className="text-brand-accent font-extrabold text-xs md:text-sm uppercase tracking-[0.2em]">Exhibición General</span>
+              </div>
+            </div>
+
+            {/* Carousel Indicators */}
+            {showcaseImages.length > 1 && (
+              <div className="absolute bottom-6 md:bottom-8 right-6 md:right-8 z-30 flex gap-2">
+                {showcaseImages.map((_, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setCurrentShowcaseIndex(idx)}
+                    className={`h-2 rounded-full transition-all duration-300 ${idx === currentShowcaseIndex ? 'bg-brand-accent w-6' : 'bg-white/40 w-2 hover:bg-white/80'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Decorative glows around the image */}
+          <div className="absolute -inset-4 bg-brand-accent/20 blur-[60px] -z-10 rounded-full opacity-40 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none" />
         </div>
       </section>
 
