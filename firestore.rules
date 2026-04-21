@@ -1,29 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: products
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required) - Name of the product
-    //   - desc: string (required) - Description of the product
-    //   - price: string (required) - Price of the product
-    //   - img: string (required) - Image URL or placeholder text
-    //
-    // ===============================================================
-
-    function isAdmin() {
-      return request.auth != null && request.auth.token.email == "elninja732@gmail.com";
+    
+    // 0. Global Safety Net - Default deny for everything
+    match /{document=**} { 
+      allow read, write: if false; 
     }
 
+    // ===============================================================
+    // PRIMITIVES & HELPERS
+    // ===============================================================
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    
+    // Hardened Admin Check - Only elninja732@gmail.com is allowed.
+    // We enforce email existence and Google verification.
+    function isAdmin() { 
+      return isSignedIn() 
+             && request.auth.token.email == "elninja732@gmail.com" 
+             && request.auth.token.email_verified == true; 
+    }
+
+    // Type and length guards
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || isValidString(data[key], maxLen);
+    }
+
+    function isOptionalList(data, key, maxSize) {
+      return !(key in data) || (data[key] is list && data[key].size() <= maxSize);
+    }
+
+    // ===============================================================
+    // ENTITY BLUEPRINTS
+    // ===============================================================
+    function isValidProduct(data) {
+      return isOptionalString(data, 'name', 200) &&
+             isOptionalString(data, 'desc', 5000) &&
+             isOptionalString(data, 'price', 100) &&
+             isOptionalString(data, 'img', 2000) &&
+             isOptionalString(data, 'originalPrice', 100) &&
+             isOptionalString(data, 'discountBadge', 50) &&
+             isOptionalString(data, 'category', 100) &&
+             isOptionalString(data, 'id', 200) && // Permitted if the client mistakenly writes it inline
+             isOptionalList(data, 'images', 30);
+    }
+
+    // ===============================================================
+    // COLLECTIONS
+    // ===============================================================
     match /products/{productId} {
-      // Allow public read so the landing page can display products to visitors
+      
+      // 1. Allow public read so the landing page can display the catalog.
+      // E-commerce necessity: Any visitor must be able to read product entries.
       allow read: if true;
-      // Only allow admin (specific email) to modify products
-      allow write: if isAdmin();
+      
+      // 2. Allow product creation ONLY for admin with strict key size constraints & type safety
+      allow create: if isAdmin() 
+                    && incoming().keys().size() <= 10
+                    && isValidProduct(incoming());
+                    
+      // 3. Allow product updates ONLY for admin using exactly allowed fields
+      allow update: if isAdmin() 
+                    && incoming().keys().size() <= 10
+                    && incoming().diff(existing()).affectedKeys().hasOnly([
+                      'name', 'desc', 'price', 'img', 'originalPrice', 
+                      'discountBadge', 'category', 'images', 'id'
+                    ])
+                    && isValidProduct(incoming());
+                    
+      // 4. Allow product deletions ONLY for admin
+      allow delete: if isAdmin();
     }
   }
 }
