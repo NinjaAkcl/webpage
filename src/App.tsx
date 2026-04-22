@@ -367,7 +367,7 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [showcaseImages, setShowcaseImages] = useState<string[]>(["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"]);
+  const [showcaseImages, setShowcaseImages] = useState<string[]>([]);
   const [currentShowcaseIndex, setCurrentShowcaseIndex] = useState(0);
   const [loadedShowcaseImgs, setLoadedShowcaseImgs] = useState<Record<number, boolean>>({});
 
@@ -407,8 +407,7 @@ export default function App() {
 
       if (newUrls.length > 0) {
         const docRef = doc(db, 'products', 'site_showcase_image');
-        const currentUrls = showcaseImages[0]?.includes('placehold.co') ? [] : showcaseImages;
-        const updatedImages = [...currentUrls, ...newUrls];
+        const updatedImages = [...showcaseImages, ...newUrls];
         const defaultData = { name: "site_showcase_image", desc: "Showcase Config", price: "0" };
         
         await updateDoc(docRef, { images: updatedImages, ...defaultData }).catch(async () => {
@@ -428,11 +427,7 @@ export default function App() {
   const handleDeleteShowcaseImage = async (index: number) => {
     // Updates UI optimistically so it feels instant
     const updatedImages = showcaseImages.filter((_, i) => i !== index);
-    if (updatedImages.length === 0) {
-      setShowcaseImages(["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"]);
-    } else {
-      setShowcaseImages(updatedImages);
-    }
+    setShowcaseImages(updatedImages);
     
     if (currentShowcaseIndex >= updatedImages.length) {
       setCurrentShowcaseIndex(Math.max(0, updatedImages.length - 1));
@@ -611,9 +606,6 @@ export default function App() {
            }
          });
          
-         if (newShowcaseImages.length === 0) {
-           newShowcaseImages = ["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"];
-         }
          setShowcaseImages(newShowcaseImages);
          
          // Si no hay productos en Firebase, mostramos los iniciales por defecto
@@ -640,10 +632,6 @@ export default function App() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/5 rounded-full blur-[150px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-brand-accent/5 rounded-full blur-[150px]" />
-        {/* Giant Watermark Logo/Text */}
-        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 text-[12vw] font-extrabold text-white/[0.02] tracking-tighter whitespace-nowrap uppercase select-none pointer-events-none">
-          NEXT LAYER
-        </div>
       </div>
 
       <div className="max-w-[1200px] mx-auto px-5 relative h-full">
@@ -659,7 +647,7 @@ export default function App() {
         <nav className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <img 
-              src="https://i.ibb.co/ybwKDtj/Mesa-de-trabajo-3-8.png" 
+              src="https://i.ibb.co/C3kQTvdW/Mesa-de-trabajo-1-8-1.png" 
               alt="Next Layer Logo" 
               width="128"
               height="128"
@@ -771,50 +759,53 @@ export default function App() {
       </section>
 
       {/* Hero Showcase / Gallery Section */}
-      <section className="py-20 relative z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-brand-accent/30 to-transparent" />
-        
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-extrabold uppercase tracking-[2px] text-white">
-            Nuestros <span className="text-brand-accent">Trabajos</span>
-          </h2>
-          <p className="text-brand-muted mt-3 max-w-2xl mx-auto text-sm">
-            Un vistazo a la calidad, nivel de detalle y terminación de nuestras impresiones de exhibición.
-          </p>
-        </div>
-        
-        <div className="max-w-6xl mx-auto relative group">
-          {/* Main Showcase Container */}
-          <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] bg-black/50">
-            {isAdmin && (
-              <div className="absolute top-4 right-4 z-50 flex gap-2">
-                <label className="cursor-pointer bg-brand-accent text-black font-extrabold text-xs uppercase px-4 py-2 rounded-full hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_20px_rgba(55,211,128,0.5)]">
-                  <Plus size={14} />
-                  {uploadingImage ? 'SUBIENDO...' : 'AÑADIR FOTOS'}
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    multiple
-                    onChange={handleShowcaseImageUpload}
-                    disabled={uploadingImage}
-                    className="hidden" 
-                  />
-                </label>
-                {showcaseImages[0] && !showcaseImages[0].includes('placehold.co') && (
-                  <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteShowcaseImage(currentShowcaseIndex); }}
-                    className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-transform hover:scale-105"
-                    title="Eliminar foto actual"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            )}
-            
-            <div className="absolute inset-0 bg-brand-accent/5 group-hover:bg-transparent transition-colors duration-500 z-20 pointer-events-none" />
-            
-            {showcaseImages.map((src, idx) => (
+      {(showcaseImages.length > 0 || isAdmin) && (
+        <section className="py-20 relative z-10">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-brand-accent/30 to-transparent" />
+          
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-extrabold uppercase tracking-[2px] text-white">
+              Nuestros <span className="text-brand-accent">Trabajos</span>
+            </h2>
+            <p className="text-brand-muted mt-3 max-w-2xl mx-auto text-sm">
+              Un vistazo a la calidad, nivel de detalle y terminación de nuestras impresiones de exhibición.
+            </p>
+          </div>
+          
+          <div className="max-w-6xl mx-auto relative group">
+            {/* Main Showcase Container */}
+            <div className={`relative ${showcaseImages.length === 0 ? 'aspect-[21/3] border-dashed border-2 bg-transparent flex items-center justify-center' : 'aspect-[16/9] md:aspect-[21/9] bg-black/50'} rounded-2xl overflow-hidden border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]`}>
+              {isAdmin && (
+                <div className={`${showcaseImages.length === 0 ? 'relative scale-150' : 'absolute top-4 right-4'} z-50 flex gap-2`}>
+                  <label className="cursor-pointer bg-brand-accent text-black font-extrabold text-xs uppercase px-4 py-2 rounded-full hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_20px_rgba(55,211,128,0.5)]">
+                    <Plus size={14} />
+                    {uploadingImage ? 'SUBIENDO...' : (showcaseImages.length === 0 ? 'AÑADIR TU PRIMERA FOTO DE EXHIBICIÓN' : 'AÑADIR FOTOS')}
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      multiple
+                      onChange={handleShowcaseImageUpload}
+                      disabled={uploadingImage}
+                      className="hidden" 
+                    />
+                  </label>
+                  {showcaseImages.length > 0 && (
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteShowcaseImage(currentShowcaseIndex); }}
+                      className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-transform hover:scale-105"
+                      title="Eliminar foto actual"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {showcaseImages.length > 0 && (
+                <>
+                  <div className="absolute inset-0 bg-brand-accent/5 group-hover:bg-transparent transition-colors duration-500 z-20 pointer-events-none" />
+                  
+                  {showcaseImages.map((src, idx) => (
               <div 
                 key={idx}
                 className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${idx === currentShowcaseIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
@@ -863,12 +854,15 @@ export default function App() {
                 ))}
               </div>
             )}
+                </>
+              )}
           </div>
           
           {/* Decorative glows around the image */}
           <div className="absolute -inset-4 bg-brand-accent/20 blur-[60px] -z-10 rounded-full opacity-40 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none" />
         </div>
       </section>
+      )}
 
       <section id="productos" className="pb-20">
         <h2 className="text-center text-3xl font-extrabold text-brand-accent my-10 uppercase tracking-[2px]">
