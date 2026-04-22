@@ -329,10 +329,13 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      setUser(user);
+    import('./firebase').then(({ isFirebaseConfigured, auth }) => {
+      if (!isFirebaseConfigured || !auth) return;
+      const unsubscribeAuth = auth.onAuthStateChanged((user: User | null) => {
+        setUser(user);
+      });
+      return () => unsubscribeAuth();
     });
-    return () => unsubscribeAuth();
   }, []);
 
   const handleLogin = async () => {
@@ -423,12 +426,27 @@ export default function App() {
   };
 
   const handleDeleteShowcaseImage = async (index: number) => {
-    if (!window.confirm("¿Eliminar esta imagen del carrusel de exhibición?")) return;
+    // Updates UI optimistically so it feels instant
     const updatedImages = showcaseImages.filter((_, i) => i !== index);
-    const docRef = doc(db, 'products', 'site_showcase_image');
-    await updateDoc(docRef, { images: updatedImages });
+    if (updatedImages.length === 0) {
+      setShowcaseImages(["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"]);
+    } else {
+      setShowcaseImages(updatedImages);
+    }
+    
     if (currentShowcaseIndex >= updatedImages.length) {
       setCurrentShowcaseIndex(Math.max(0, updatedImages.length - 1));
+    }
+
+    try {
+      const docRef = doc(db, 'products', 'site_showcase_image');
+      const defaultData = { name: "site_showcase_image", desc: "Showcase Config", price: "0" };
+      await updateDoc(docRef, { images: updatedImages }).catch(async () => {
+         await setDoc(docRef, { images: updatedImages, ...defaultData });
+      });
+    } catch (error: any) {
+      console.error("Error al eliminar la imagen del showcase:", error);
+      alert('⚠️ Hubo un error de red al borrar en Firestore que impidió la acción. Error: ' + error.message);
     }
   };
 
@@ -504,12 +522,13 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este producto?")) return;
+    setProducts(prev => prev.filter(p => p.id !== productId));
+
     try {
       await deleteDoc(doc(db, 'products', productId));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting product:", error);
-      alert("Hubo un error al eliminar.");
+      alert("Hubo un error de conexión, inténtalo de nuevo.");
     }
   };
 
@@ -567,43 +586,52 @@ export default function App() {
   }, [cart, cartTotal]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const productsData: Product[] = [];
-      let newShowcaseImages: string[] = [];
-      
-      snapshot.forEach((doc) => {
-        if (doc.id === 'site_showcase_image') {
-          const data = doc.data();
-          if (data.images && data.images.length > 0) {
-             newShowcaseImages = data.images;
-          } else if (data.img) {
-             newShowcaseImages = [data.img];
-          }
-        } else {
-          productsData.push({ id: doc.id, ...doc.data() } as Product);
-        }
-      });
-      
-      if (newShowcaseImages.length === 0) {
-        newShowcaseImages = ["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"];
-      }
-      setShowcaseImages(newShowcaseImages);
-      
-      // Si no hay productos en Firebase, mostramos los iniciales por defecto
-      if (productsData.length === 0) {
-        setProducts(INITIAL_PRODUCTS);
-      } else {
-        setProducts(productsData);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error('Error fetching products:', error);
-      // En caso de error de permisos, mostramos los productos por defecto
-      setProducts(INITIAL_PRODUCTS);
-      setLoading(false);
-    });
+    import('./firebase').then(({ isFirebaseConfigured }) => {
+       if (!isFirebaseConfigured) {
+          console.warn("Skipping Firestore sync since it's not configured in variables.");
+          setProducts(INITIAL_PRODUCTS);
+          setLoading(false);
+          return;
+       }
 
-    return () => unsubscribe();
+       const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
+         const productsData: Product[] = [];
+         let newShowcaseImages: string[] = [];
+         
+         snapshot.forEach((doc) => {
+           if (doc.id === 'site_showcase_image') {
+             const data = doc.data();
+             if (Array.isArray(data.images)) {
+                newShowcaseImages = data.images;
+             } else if (data.img) {
+                newShowcaseImages = [data.img];
+             }
+           } else {
+             productsData.push({ id: doc.id, ...doc.data() } as Product);
+           }
+         });
+         
+         if (newShowcaseImages.length === 0) {
+           newShowcaseImages = ["https://placehold.co/1200x600/111111/37d380?text=Ingresa+Aquí+tu+Muestra+de+Productos"];
+         }
+         setShowcaseImages(newShowcaseImages);
+         
+         // Si no hay productos en Firebase, mostramos los iniciales por defecto
+         if (productsData.length === 0) {
+           setProducts(INITIAL_PRODUCTS);
+         } else {
+           setProducts(productsData);
+         }
+         setLoading(false);
+       }, (error) => {
+         console.warn('Network or permission issue fetching products - working in offline fallback mode:', error.message);
+         // En caso de error de permisos o red, mostramos los productos por defecto
+         setProducts(INITIAL_PRODUCTS);
+         setLoading(false);
+       });
+
+       return () => unsubscribe();
+    });
   }, []);
 
   return (
@@ -774,7 +802,7 @@ export default function App() {
                 </label>
                 {showcaseImages[0] && !showcaseImages[0].includes('placehold.co') && (
                   <button 
-                    onClick={() => handleDeleteShowcaseImage(currentShowcaseIndex)}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteShowcaseImage(currentShowcaseIndex); }}
                     className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-transform hover:scale-105"
                     title="Eliminar foto actual"
                   >

@@ -14,11 +14,19 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+export const isFirebaseConfigured = Boolean(firebaseConfig.projectId && firebaseConfig.apiKey);
 
-if (!firebaseConfig.projectId) {
-  console.error("Firebase config is missing projectId. Ensure VITE_FIREBASE_PROJECT_ID is set.");
+let app = undefined;
+let dbInstance = undefined;
+let authInstance = undefined;
+
+if (isFirebaseConfigured) {
+  app = initializeApp(firebaseConfig);
+  dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+  authInstance = getAuth(app);
+} else {
+  console.warn("⚠️ Firebase configuration missing! App will run with local placeholder data. Add your VITE_FIREBASE_... variables to the .env file.");
 }
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
-export const auth = getAuth(app);
+export const db = dbInstance as any;
+export const auth = authInstance as any;
