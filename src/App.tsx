@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn } from 'lucide-react';
+import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn, Search, Send, Home, Package } from 'lucide-react';
 import { collection, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
@@ -87,12 +87,16 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
 
   return (
     <div 
-      className="bg-brand-card rounded-2xl overflow-hidden flex flex-col border border-white/5 hover:border-brand-accent/30 transition-all duration-500 ease-out hover:shadow-[0_10px_40px_-10px_rgba(0,255,136,0.2)] hover:-translate-y-2 cursor-pointer group"
+      className="bg-[#0f1115] rounded-3xl overflow-hidden flex flex-col border border-white/5 hover:border-brand-accent/20 transition-all duration-500 ease-out hover:shadow-[0_20px_60px_-15px_rgba(0,255,136,0.15)] hover:-translate-y-2 cursor-pointer group"
       onClick={() => onClick(p)}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/20">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#15181e] to-[#0a0c0f]">
+        
+        {/* Subtle noise inside the card image area */}
+        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none z-10" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }} />
+
         {getDiscountPercent(p.price, p.originalPrice) > 0 && (
-          <div className="absolute top-3 left-3 z-10 bg-brand-accent text-black text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-[0_2px_10px_rgba(0,255,136,0.5)] flex items-center gap-1">
+          <div className="absolute top-3 left-3 z-20 bg-brand-accent text-black text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-[0_2px_10px_rgba(0,255,136,0.3)] flex items-center gap-1">
             <Tag size={10} />
             {getDiscountPercent(p.price, p.originalPrice)}% OFF
           </div>
@@ -149,26 +153,41 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
           </>
         )}
       </div>
-      <div className="p-5 flex flex-col flex-grow">
-        <div className="text-brand-accent text-lg font-bold mb-2 leading-tight">{p.name}</div>
-        <div className="text-sm text-brand-muted mb-5 flex-grow line-clamp-2">{p.desc}</div>
-        <div className="flex justify-between items-end">
-          <div className="flex flex-col">
-            {p.originalPrice && (
-              <span className="text-xs text-red-400/80 line-through mb-0.5">{p.originalPrice}</span>
-            )}
-            <span className={`text-xl font-extrabold ${p.originalPrice ? 'text-brand-accent' : 'text-white'}`}>{p.price}</span>
-          </div>
+      <div className="p-6 md:p-8 flex flex-col flex-grow bg-[#0a0c0f] rounded-b-3xl text-left">
+        <div className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold mb-3">{p.category || 'Modelo 3D'}</div>
+        
+        {/* Main Product Info Container */}
+        <div className="flex flex-col flex-grow">
+          <span className="text-white text-xl md:text-2xl font-bold mb-2 leading-tight tracking-tight block">
+            {p.name}
+          </span>
+          <span className="text-sm text-brand-muted mb-6 font-normal leading-relaxed line-clamp-3 block">
+            {p.desc}
+          </span>
+        </div>
+        
+        {/* Price on a separate dedicated line */}
+        <div className="flex flex-col mt-auto pb-4">
+          {p.originalPrice && (
+            <span className="text-xs text-red-400/60 line-through mb-1 block">{p.originalPrice}</span>
+          )}
+          <span className={`text-3xl font-extrabold tracking-tight block ${p.originalPrice ? 'text-brand-accent' : 'text-white'}`}>
+            {p.price}
+          </span>
+        </div>
+
+        {/* Action Button */}
+        <div className="pt-4 border-t border-white/5 mt-2">
           <button 
-            className={`px-4 py-2 rounded-full font-extrabold text-xs uppercase transition-all duration-300 flex items-center gap-1.5 ${
+            className={`w-full py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 ${
               isAdded 
-                ? 'bg-brand-accent text-black scale-105 shadow-[0_0_15px_rgba(0,255,136,0.5)]' 
-                : 'bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-black'
+                ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]' 
+                : 'bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-black hover:shadow-[0_5px_15px_rgba(0,255,136,0.3)]'
             }`}
             onClick={handleAdd}
           >
-            <ShoppingCart size={14} />
-            {isAdded ? '¡AGREGADO!' : 'AGREGAR'}
+            <ShoppingCart size={16} />
+            {isAdded ? '¡AGREGADO!' : 'AGREGAR AL CARRITO'}
           </button>
         </div>
       </div>
@@ -208,31 +227,34 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
       onClick={onClose}
     >
       <div 
-        className="bg-brand-card border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row relative shadow-2xl"
+        className="bg-[#0f1115] border border-white/5 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row relative shadow-[0_30px_100px_rgba(0,0,0,1)] selection:bg-brand-accent selection:text-black overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <button 
-          className="absolute top-4 right-4 z-20 bg-black/50 text-white/70 hover:text-white p-2 rounded-full transition-colors hover:bg-brand-accent hover:text-black"
+          className="absolute top-4 right-4 md:top-6 md:right-6 z-20 bg-black/50 text-white/50 hover:text-white p-2.5 rounded-full transition-all hover:bg-white/10 hover:scale-110"
           onClick={onClose}
         >
-          <X size={24} />
+          <X size={20} />
         </button>
 
         {/* Left: Image Gallery */}
-        <div className="w-full md:w-1/2 relative bg-black/30 min-h-[300px] md:min-h-[400px] flex items-center justify-center">
+        <div className="w-full md:w-1/2 relative bg-gradient-to-br from-[#15181e] to-[#0a0c0f] min-h-[350px] md:min-h-[500px] flex items-center justify-center p-8">
+          {/* Subtle noise texture */}
+          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }} />
+          
           {getDiscountPercent(p.price, p.originalPrice) > 0 && (
-            <div className="absolute top-4 left-4 z-10 bg-brand-accent text-black text-xs font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-[0_2px_15px_rgba(0,255,136,0.5)] flex items-center gap-1.5">
-              <Tag size={14} />
+            <div className="absolute top-6 left-6 z-10 bg-brand-accent text-black text-[11px] font-extrabold px-4 py-2 rounded-full uppercase tracking-[0.2em] shadow-[0_5px_20px_rgba(0,255,136,0.2)] flex items-center gap-2">
+              <Tag size={12} />
               {getDiscountPercent(p.price, p.originalPrice)}% OFF
             </div>
           )}
           {!imgLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin" />
+              <div className="w-10 h-10 border-2 border-brand-accent/20 border-t-brand-accent rounded-full animate-spin" />
             </div>
           )}
           <img 
@@ -240,29 +262,30 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
             alt={p.name} 
             loading="lazy"
             onLoad={() => setImgLoaded(true)}
-            className={`w-full h-full object-contain max-h-[500px] transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} 
+            className={`w-full h-full object-contain drop-shadow-2xl max-h-[500px] transition-all duration-700 ease-out ${imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} 
             referrerPolicy="no-referrer" 
           />
+          
           {images.length > 1 && (
             <>
               <button 
                 onClick={prevImage} 
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 text-white p-2 rounded-full hover:bg-brand-accent hover:text-black transition-colors"
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/20 backdrop-blur-md border border-white/5 text-white p-3 rounded-full hover:bg-white/10 transition-all hover:scale-110"
               >
-                <ChevronLeft size={24} />
+                <ChevronLeft size={20} />
               </button>
               <button 
                 onClick={nextImage} 
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 text-white p-2 rounded-full hover:bg-brand-accent hover:text-black transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/20 backdrop-blur-md border border-white/5 text-white p-3 rounded-full hover:bg-white/10 transition-all hover:scale-110"
               >
-                <ChevronRight size={24} />
+                <ChevronRight size={20} />
               </button>
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/5">
                 {images.map((_, idx) => (
                   <button 
                     key={idx} 
                     onClick={() => setCurrentIndex(idx)}
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === currentIndex ? 'bg-brand-accent' : 'bg-white/50 hover:bg-white'}`} 
+                    className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-brand-accent' : 'w-1.5 bg-white/30 hover:bg-white/60'}`} 
                   />
                 ))}
               </div>
@@ -271,33 +294,49 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
         </div>
 
         {/* Right: Details */}
-        <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-brand-accent mb-4 leading-tight">{p.name}</h2>
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-[#0a0c0f]">
+          <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-brand-muted font-bold">
+            <span className="w-8 h-[1px] bg-brand-accent/50"></span>
+            {p.category || 'MODELO 3D'}
+          </div>
           
-          <div className="flex items-end gap-3 mb-6 pb-6 border-b border-white/10">
-            <span className={`text-4xl font-extrabold ${p.originalPrice ? 'text-brand-accent' : 'text-white'}`}>{p.price}</span>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-6 leading-tight tracking-tight">
+            {p.name}
+          </h2>
+          
+          <div className="flex items-end gap-4 mb-8">
+            <span className="text-4xl md:text-5xl font-extrabold text-brand-accent tracking-tighter drop-shadow-[0_0_20px_rgba(0,255,136,0.2)]">
+              {p.price}
+            </span>
             {p.originalPrice && (
-              <div className="flex flex-col mb-1">
-                <span className="text-sm text-red-400/80 line-through">{p.originalPrice}</span>
-                <span className="text-[10px] text-brand-muted uppercase tracking-wider font-semibold">Precio original</span>
+              <div className="flex flex-col pb-1.5">
+                <span className="text-sm text-red-400/60 line-through font-medium">{p.originalPrice}</span>
               </div>
             )}
           </div>
           
-          <div className="text-brand-muted text-base leading-relaxed mb-8 flex-grow whitespace-pre-wrap">
-            {p.desc}
+          <div className="h-[1px] w-full bg-gradient-to-r from-white/10 to-transparent mb-8" />
+          
+          <div className="text-brand-muted text-sm md:text-base leading-relaxed mb-10 flex-grow whitespace-pre-wrap font-medium">
+            {p.desc || 'Modelo de alta resolución. Materiales premium y excelente nivel de detalle.'}
+          </div>
+          
+          {/* Aesthetic feature tags */}
+          <div className="flex gap-3 mb-10 text-[10px] uppercase tracking-wider font-bold text-white/50">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-white/5 bg-white/[0.02]"><span className="w-1.5 h-1.5 rounded-full bg-brand-accent"></span> Premium PLA</div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-white/5 bg-white/[0.02]"><span className="w-1.5 h-1.5 rounded-full bg-brand-accent"></span> Alta Precisión</div>
           </div>
           
           <button 
             onClick={handleAdd}
-            className={`w-full py-4 rounded-xl font-extrabold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,136,0.2)] ${
+            className={`w-full py-4 md:py-5 rounded-2xl font-extrabold text-sm uppercase tracking-[0.2em] transition-all duration-500 flex items-center justify-center gap-3 ${
               isAdded
-                ? 'bg-white text-black scale-[1.02]'
-                : 'bg-brand-accent text-black hover:scale-[1.02] hover:opacity-90'
+                ? 'bg-white text-black scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.3)]'
+                : 'bg-brand-accent text-black hover:scale-[1.02] hover:bg-white hover:text-black shadow-[0_10px_30px_rgba(0,255,136,0.15)] hover:shadow-[0_15px_40px_rgba(255,255,255,0.2)]'
             }`}
           >
-            <ShoppingCart size={20} />
-            {isAdded ? '¡AGREGADO AL CARRITO!' : 'AGREGAR AL CARRITO'}
+            <ShoppingCart size={18} />
+            {isAdded ? 'AÑADIDO AL CARRITO' : 'AÑADIR AL PEDIDO'}
           </button>
         </div>
       </div>
@@ -311,18 +350,32 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
+  // Categories Admin State
+  const [predefinedCategories, setPredefinedCategories] = useState<string[]>(['Oficina', 'Decoración', 'Juegos', 'Coleccionables', 'Accesorios', 'Repuestos', 'Otros']);
+  const [isCategoriesAdminOpen, setIsCategoriesAdminOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
   // Categories State
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Categorías calculadas
   const categories = React.useMemo(() => {
-    return ['Todos', ...Array.from(new Set(products.map(p => p.category || 'Otros')))];
-  }, [products]);
+    const fromProducts = products.map(p => p.category || 'Otros');
+    const uniqueCombined = Array.from(new Set([...predefinedCategories, ...fromProducts]));
+    const finalCategories = uniqueCombined.filter(c => c && c.trim() !== '' && c !== 'Todos');
+    return ['Todos', ...finalCategories.sort()];
+  }, [products, predefinedCategories]);
 
   // Productos filtrados calculados
   const filteredProducts = React.useMemo(() => {
-    return products.filter((p) => selectedCategory === 'Todos' || (p.category || 'Otros') === selectedCategory);
-  }, [products, selectedCategory]);
+    return products.filter((p) => {
+      const matchCategory = selectedCategory === 'Todos' || (p.category || 'Otros') === selectedCategory;
+      const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.desc && p.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchCategory && matchSearch;
+    });
+  }, [products, selectedCategory, searchQuery]);
 
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -532,6 +585,27 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartIsAnimating, setCartIsAnimating] = useState(false);
 
+  const handleSaveCategories = async () => {
+    try {
+      await setDoc(doc(db, 'products', 'site_settings'), { categories: predefinedCategories }, { merge: true });
+      setIsCategoriesAdminOpen(false);
+    } catch (error) {
+      console.error("Error saving categories: ", error);
+      alert("Error al guardar categorías. Solo el admin puede hacer esto.");
+    }
+  };
+
+  const addCategory = () => {
+    if (newCategoryName.trim() && !predefinedCategories.includes(newCategoryName.trim())) {
+      setPredefinedCategories([...predefinedCategories, newCategoryName.trim()]);
+      setNewCategoryName('');
+    }
+  };
+
+  const removeCategory = (catToRemove: string) => {
+    setPredefinedCategories(predefinedCategories.filter(c => c !== catToRemove));
+  };
+
   const addToCart = React.useCallback((product: Product) => {
     setCart(prev => {
       const matchBy = product.id ? (item: CartItem) => item.id === product.id : (item: CartItem) => item.name === product.name;
@@ -592,6 +666,7 @@ export default function App() {
        const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
          const productsData: Product[] = [];
          let newShowcaseImages: string[] = [];
+         let newPredefinedCategories: string[] | null = null;
          
          snapshot.forEach((doc) => {
            if (doc.id === 'site_showcase_image') {
@@ -601,12 +676,20 @@ export default function App() {
              } else if (data.img) {
                 newShowcaseImages = [data.img];
              }
+           } else if (doc.id === 'site_settings') {
+             const data = doc.data();
+             if (Array.isArray(data.categories)) {
+               newPredefinedCategories = data.categories;
+             }
            } else {
              productsData.push({ id: doc.id, ...doc.data() } as Product);
            }
          });
          
          setShowcaseImages(newShowcaseImages);
+         if (newPredefinedCategories) {
+           setPredefinedCategories(newPredefinedCategories);
+         }
          
          // Si no hay productos en Firebase, mostramos los iniciales por defecto
          if (productsData.length === 0) {
@@ -627,7 +710,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen pb-20 sm:pb-0">
       {/* Ambient background glow */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-[-1]">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/5 rounded-full blur-[150px]" />
@@ -869,20 +952,9 @@ export default function App() {
           Productos
         </h2>
         
-        {/* Filtros de categorías */}
-        <div className="flex flex-col items-center gap-8 mb-12">
-          {isAdmin && (
-            <button
-              onClick={() => {
-                setEditingProduct({ name: '', desc: '', price: '', img: '', category: '' });
-                setIsAddingNew(true);
-              }}
-              className="bg-brand-accent text-black px-8 py-3 rounded-full font-extrabold text-sm uppercase flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,136,0.2)] hover:shadow-[0_0_30px_rgba(0,255,136,0.4)]"
-            >
-              <Plus size={18} /> AÑADIR NUEVO PRODUCTO
-            </button>
-          )}
-
+        {/* Herramientas de filtrado y búsqueda */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 max-w-6xl mx-auto">
+          {/* Categorías */}
           <div className="flex flex-wrap justify-center gap-2 p-1.5 bg-black/30 border border-white/5 rounded-full shadow-inner">
             {categories.map((cat) => (
               <button
@@ -898,7 +970,39 @@ export default function App() {
               </button>
             ))}
           </div>
+
+          {/* Buscador */}
+          <div className="relative w-full md:w-auto min-w-[280px]">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar modelos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 rounded-full py-3 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/50 transition-all placeholder:text-white/30"
+            />
+          </div>
         </div>
+        
+        {isAdmin && (
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10 w-full max-w-2xl mx-auto">
+            <button
+              onClick={() => {
+                setEditingProduct({ name: '', desc: '', price: '', img: '', category: '' });
+                setIsAddingNew(true);
+              }}
+              className="bg-brand-accent text-black px-6 py-3 rounded-full font-extrabold text-xs md:text-sm uppercase flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,255,136,0.2)] hover:shadow-[0_0_30px_rgba(0,255,136,0.4)] flex-1"
+            >
+              <Plus size={18} /> AÑADIR NUEVO PRODUCTO
+            </button>
+            <button
+              onClick={() => setIsCategoriesAdminOpen(true)}
+              className="bg-black/50 border border-white/20 text-white px-6 py-3 rounded-full font-extrabold text-xs md:text-sm uppercase flex items-center justify-center gap-2 hover:bg-white/10 transition-colors flex-1"
+            >
+              <Tag size={18} /> GESTIONAR CATEGORÍAS
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {loading ? (
@@ -916,6 +1020,33 @@ export default function App() {
               />
             ))
           )}
+        </div>
+        
+        {/* Custom Order Call to Action for 3D Printing */}
+        <div className="mt-24 max-w-4xl mx-auto text-center bg-black/40 border border-brand-accent/20 rounded-3xl p-8 md:p-14 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/10 to-transparent pointer-events-none" />
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand-accent/20 rounded-full blur-[80px] pointer-events-none group-hover:bg-brand-accent/30 transition-colors duration-700" />
+          
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-16 h-16 bg-brand-accent/20 rounded-2xl flex items-center justify-center mb-6 text-brand-accent group-hover:scale-110 transition-transform duration-500 shadow-[0_0_30px_rgba(55,211,128,0.2)]">
+              <Send size={32} />
+            </div>
+            
+            <h3 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-white mb-4">
+              ¿Tenés tu propio <span className="text-brand-accent">diseño 3D?</span>
+            </h3>
+            
+            <p className="text-brand-muted max-w-lg mb-8 leading-relaxed font-medium">
+              Si encontraste un modelo en Thingiverse, Cults3D, Printables o tienes un archivo STL personalizado, envíalo y te lo cotizamos sin cargo.
+            </p>
+            
+            <button 
+              onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! Tengo un archivo STL/diseño 3D y me gustaría pedir una cotización.')}`, '_blank')}
+              className="bg-white text-black px-8 py-4 rounded-full font-extrabold tracking-wider text-sm flex items-center gap-2 hover:bg-brand-accent transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(55,211,128,0.4)] hover:scale-105"
+            >
+              COTIZAR MI ARCHIVO AHORA
+            </button>
+          </div>
         </div>
       </section>
 
@@ -965,6 +1096,75 @@ export default function App() {
         <ProductModal p={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />
       )}
 
+      {/* Admin Categories Editor Modal */}
+      {isCategoriesAdminOpen && isAdmin && (
+        <div className="fixed inset-0 z-[80] flex justify-center items-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="bg-[#0f1115] border border-white/10 rounded-3xl w-full max-w-lg shadow-[0_30px_100px_rgba(0,0,0,1)] relative flex flex-col overflow-hidden max-h-[90vh]">
+            <button 
+              onClick={() => setIsCategoriesAdminOpen(false)} 
+              className="absolute top-6 right-6 z-40 bg-black/50 text-white/50 hover:text-white p-2.5 rounded-full hover:bg-white/10 transition-all"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-8 md:p-10 flex flex-col h-full min-h-0 overflow-hidden">
+              <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-brand-muted font-bold shrink-0">
+                <span className="w-8 h-[1px] bg-brand-accent/50"></span>
+                PREFERENCIAS DE CATÁLOGO
+              </div>
+              <h2 className="text-3xl font-extrabold text-white mb-8 tracking-tight shrink-0">
+                Gestionar Categorías
+              </h2>
+
+              <div className="flex bg-black/30 p-1 rounded-xl border border-white/5 mb-8 shrink-0">
+                <input 
+                  type="text" 
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Ej. Soportes"
+                  onKeyDown={(e) => e.key === 'Enter' && addCategory()}
+                  className="flex-1 bg-transparent border-none px-4 py-3 text-sm text-white focus:outline-none placeholder:text-white/30"
+                />
+                <button 
+                  onClick={addCategory}
+                  className="bg-brand-accent text-black px-6 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-white transition-colors"
+                >
+                  Agregar
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 mb-8 pr-2 space-y-2 min-h-0">
+                {predefinedCategories.length === 0 && (
+                  <p className="text-center text-white/40 text-sm italic py-8 border border-dashed border-white/10 rounded-xl shrink-0">
+                    No hay categorías predefinidas.
+                  </p>
+                )}
+                {predefinedCategories.map(cat => (
+                  <div key={cat} className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5 hover:border-brand-accent/30 transition-colors group shrink-0">
+                    <span className="text-white font-medium">{cat}</span>
+                    <button 
+                      onClick={() => removeCategory(cat)}
+                      className="text-white/20 hover:text-red-400 p-2 rounded-full hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-6 border-t border-white/5 mt-auto shrink-0">
+                <button 
+                  onClick={handleSaveCategories}
+                  className="w-full bg-brand-accent text-black py-4 rounded-xl font-extrabold text-sm uppercase tracking-[0.1em] hover:bg-white transition-all duration-300 shadow-[0_5px_20px_rgba(0,255,136,0.2)] hover:shadow-[0_10px_30px_rgba(255,255,255,0.2)]"
+                >
+                  GUARDAR CONFIGURACIÓN
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Admin Product Editor Modal */}
       {editingProduct && isAdmin && (
         <div className="fixed inset-0 z-[70] flex justify-center items-center p-2 sm:p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
@@ -1012,14 +1212,23 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Categoría</label>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider flex justify-between">
+                        <span>Categoría</span>
+                        <button onClick={() => setIsCategoriesAdminOpen(true)} className="text-brand-accent hover:text-white underline" type="button">EDITAR</button>
+                      </label>
                       <input 
                         type="text" 
                         value={editingProduct.category || ''} 
                         onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
                         placeholder="Ej. Oficina, Juegos..."
+                        list="category-suggestions"
                         className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
                       />
+                      <datalist id="category-suggestions">
+                        {predefinedCategories.map(cat => (
+                          <option key={cat} value={cat} />
+                        ))}
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Descripción</label>
@@ -1216,11 +1425,39 @@ export default function App() {
         href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("¡Hola! Vengo de la tienda online y tengo una consulta.")}`}
         target="_blank"
         rel="noreferrer"
-        className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:scale-110 transition-transform duration-300 flex items-center justify-center"
+        className="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 z-50 bg-[#25D366] text-white p-4 rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:scale-110 transition-transform duration-300 flex items-center justify-center"
         aria-label="Contactar por WhatsApp"
       >
         <MessageCircle size={32} />
       </a>
+
+      {/* Persistent Bottom Nav Mobile */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#0f1115] border-t border-white/10 z-[100] flex justify-around items-center p-3 pb-safe-area-inset-bottom shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <a href="#" className="flex flex-col items-center gap-1 text-brand-muted hover:text-brand-accent transition-colors">
+          <Home size={20} />
+          <span className="text-[10px] uppercase font-bold tracking-wider">Inicio</span>
+        </a>
+        <a href="#productos" className="flex flex-col items-center gap-1 text-brand-muted hover:text-brand-accent transition-colors">
+          <Package size={20} />
+          <span className="text-[10px] uppercase font-bold tracking-wider">Productos</span>
+        </a>
+        <a href="#contacto" className="flex flex-col items-center gap-1 text-brand-muted hover:text-brand-accent transition-colors">
+          <MessageCircle size={20} />
+          <span className="text-[10px] uppercase font-bold tracking-wider">Contacto</span>
+        </a>
+        <button onClick={() => setIsCartOpen(true)} className="flex flex-col items-center gap-1 text-brand-muted hover:text-brand-accent transition-colors relative">
+          <div className="relative">
+            <ShoppingCart size={20} />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-brand-accent text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {cart.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] uppercase font-bold tracking-wider">Carrito</span>
+        </button>
+      </div>
+
     </div>
     </div>
   );
