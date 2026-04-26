@@ -467,7 +467,12 @@ export default function App() {
              await setDoc(docRef, { images: updatedImages, ...defaultData });
         });
       } else {
-        alert("Error al subir imagen(es). Revisa ImgBB.");
+        console.error("ImgBB showcase upload failed. Responses:", results);
+        let errorMsg = "Error al subir imagen(es). Revisa ImgBB.";
+        if (results.length > 0 && results[0].error) {
+           errorMsg += ` Detalles: ${results[0].error.message}`;
+        }
+        alert(errorMsg);
       }
     } catch (error) {
       console.error("Error al subir imagen de exhibición:", error);
@@ -523,7 +528,12 @@ export default function App() {
       const newUrls = results.filter(data => data.success).map(data => data.data.url);
 
       if (newUrls.length === 0) {
-        alert("Error al subir imagen(es). Revisa ImgBB.");
+        console.error("ImgBB upload failed. Responses:", results);
+        let errorMsg = "Error al subir imagen(es). Revisa ImgBB.";
+        if (results.length > 0 && results[0].error) {
+           errorMsg += ` Detalles: ${results[0].error.message}`;
+        }
+        alert(errorMsg);
         return;
       }
 
