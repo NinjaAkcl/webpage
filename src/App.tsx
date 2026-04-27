@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn, Search, Send, Home, Package } from 'lucide-react';
+import { Menu, X, ChevronLeft, ChevronRight, Tag, MessageCircle, ShoppingCart, Trash2, Plus, Minus, Edit2, LogOut, LogIn, Search, Send, Home, Package, Zap, Clock, ShieldCheck, PenTool } from 'lucide-react';
 import { collection, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
@@ -54,10 +54,6 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
   const [isAdded, setIsAdded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  useEffect(() => {
-    setImgLoaded(false);
-  }, [currentIndex]);
-
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     onAdd(p);
@@ -67,10 +63,12 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setImgLoaded(false);
     setCurrentIndex((prev) => (prev + 1) % images.length);
   };
   const prevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setImgLoaded(false);
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
@@ -121,10 +119,11 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
           <div className="absolute inset-0 bg-white/5 animate-pulse" />
         )}
         <img 
+          key={displaySrc}
           src={displaySrc} 
           alt={p.name} 
-          loading="lazy"
           onLoad={() => setImgLoaded(true)}
+          onError={() => setImgLoaded(true)}
           className={`w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 ${imgLoaded ? 'opacity-100' : 'opacity-0 scale-105'}`} 
           referrerPolicy="no-referrer" 
         />
@@ -201,10 +200,6 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
   const [isAdded, setIsAdded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  useEffect(() => {
-    setImgLoaded(false);
-  }, [currentIndex]);
-
   const handleAdd = () => {
     onAdd(p);
     setIsAdded(true);
@@ -214,8 +209,14 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
     }, 600);
   };
 
-  const nextImage = () => setCurrentIndex((prev) => (prev + 1) % images.length);
-  const prevImage = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  const nextImage = () => {
+    setImgLoaded(false);
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+  const prevImage = () => {
+    setImgLoaded(false);
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   let currentImgSrc = images[currentIndex] || '';
   if (currentImgSrc.match(/^https?:\/\/(www\.)?imgur\.com\/[a-zA-Z0-9]+$/)) {
@@ -258,10 +259,11 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
             </div>
           )}
           <img 
+            key={displaySrc}
             src={displaySrc} 
             alt={p.name} 
-            loading="lazy"
             onLoad={() => setImgLoaded(true)}
+            onError={() => setImgLoaded(true)}
             className={`w-full h-full object-contain drop-shadow-2xl max-h-[500px] transition-all duration-700 ease-out ${imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} 
             referrerPolicy="no-referrer" 
           />
@@ -284,7 +286,10 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
                 {images.map((_, idx) => (
                   <button 
                     key={idx} 
-                    onClick={() => setCurrentIndex(idx)}
+                    onClick={() => {
+                      setImgLoaded(false);
+                      setCurrentIndex(idx);
+                    }}
                     className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-brand-accent' : 'w-1.5 bg-white/30 hover:bg-white/60'}`} 
                   />
                 ))}
@@ -820,35 +825,20 @@ export default function App() {
         )}
       </header>
 
-      <section className="flex flex-col items-center justify-center py-32 text-center relative z-10 w-full max-w-4xl mx-auto">
-        <h1 className="text-5xl md:text-7xl font-extrabold leading-[1.05] mb-6 uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white to-white/70">
+      <section className="flex flex-col items-center justify-center pt-24 pb-16 text-center relative z-10 w-full max-w-5xl mx-auto px-4">
+        <h1 className="text-6xl md:text-8xl font-black leading-[1.05] mb-6 uppercase tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-tr from-white via-white to-white/60">
           Impresión 3D de<br />
-          <span className="text-brand-accent drop-shadow-[0_0_30px_rgba(55,211,128,0.3)]">Alta Calidad</span>
+          <span className="text-brand-accent drop-shadow-[0_0_40px_rgba(55,211,128,0.4)]">Alta Calidad</span>
         </h1>
-        <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto text-brand-muted font-medium">
+        <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto text-brand-muted font-medium">
           Transformamos tus ideas en realidad con tecnología de última generación, precisión milimétrica y materiales premium.
         </p>
         <button 
           onClick={() => document.getElementById('productos')?.scrollIntoView({ behavior: 'smooth' })}
-          className="bg-brand-accent text-black px-10 py-4 rounded-full font-extrabold tracking-widest text-sm uppercase transition-all duration-300 hover:scale-105 hover:bg-white hover:text-black shadow-[0_0_20px_rgba(55,211,128,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]"
+          className="bg-brand-accent text-black px-12 py-5 rounded-full font-extrabold tracking-[0.15em] text-sm md:text-base uppercase transition-all duration-300 hover:scale-105 hover:bg-white hover:text-black shadow-[0_0_30px_rgba(55,211,128,0.4)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)]"
         >
           VISITÁ EL CATÁLOGO
         </button>
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-5 py-12">
-        <div className="border border-brand-accent p-8 text-center rounded bg-black/50">
-          <div className="text-brand-accent text-sm font-extrabold mb-2.5 uppercase">Diseños Personalizados</div>
-          <div className="text-[13px]">Creamos piezas únicas adaptadas a tus necesidades específicas</div>
-        </div>
-        <div className="border border-brand-accent p-8 text-center rounded bg-black/50">
-          <div className="text-brand-accent text-sm font-extrabold mb-2.5 uppercase">Entrega Rápida</div>
-          <div className="text-[13px]">Producción eficiente con tiempos de entrega optimizados</div>
-        </div>
-        <div className="border border-brand-accent p-8 text-center rounded bg-black/50">
-          <div className="text-brand-accent text-sm font-extrabold mb-2.5 uppercase">Calidad Garantizada</div>
-          <div className="text-[13px]">Materiales de primera calidad y control riguroso de acabados</div>
-        </div>
       </section>
 
       {/* Hero Showcase / Gallery Section */}
@@ -956,6 +946,43 @@ export default function App() {
         </div>
       </section>
       )}
+
+      {/* Impactful Features Section (Moved down) */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 py-10 md:py-16 px-4 max-w-5xl mx-auto z-10 relative">
+        <div className="border border-brand-accent p-6 md:p-8 rounded-2xl bg-black/40 flex flex-col items-center text-center transform transition-all duration-300 hover:scale-[1.03] hover:bg-black/60 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+          <div className="bg-brand-accent/10 p-4 rounded-full mb-5 relative group">
+            <div className="absolute inset-0 bg-brand-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <PenTool size={40} strokeWidth={1.5} className="text-brand-accent relative z-10" />
+          </div>
+          <h3 className="text-brand-accent text-xl md:text-2xl font-black mb-3 uppercase tracking-[0.1em] leading-tight flex flex-col gap-1">
+            <span>Diseños</span>
+            <span>Personalizados</span>
+          </h3>
+          <p className="text-brand-muted text-sm md:text-base leading-relaxed mt-1 font-medium">Creamos piezas únicas adaptadas a tus necesidades específicas.</p>
+        </div>
+        <div className="border border-brand-accent p-6 md:p-8 rounded-2xl bg-black/40 flex flex-col items-center text-center transform transition-all duration-300 hover:scale-[1.03] hover:bg-black/60 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+          <div className="bg-brand-accent/10 p-4 rounded-full mb-5 relative group">
+            <div className="absolute inset-0 bg-brand-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <Clock size={40} strokeWidth={1.5} className="text-brand-accent relative z-10" />
+          </div>
+          <h3 className="text-brand-accent text-xl md:text-2xl font-black mb-3 uppercase tracking-[0.1em] leading-tight flex flex-col gap-1">
+            <span>Entrega</span>
+            <span>Rápida</span>
+          </h3>
+          <p className="text-brand-muted text-sm md:text-base leading-relaxed mt-1 font-medium">Producción eficiente con tiempos de entrega optimizados.</p>
+        </div>
+        <div className="border border-brand-accent p-6 md:p-8 rounded-2xl bg-black/40 flex flex-col items-center text-center transform transition-all duration-300 hover:scale-[1.03] hover:bg-black/60 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+          <div className="bg-brand-accent/10 p-4 rounded-full mb-5 relative group">
+            <div className="absolute inset-0 bg-brand-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <ShieldCheck size={40} strokeWidth={1.5} className="text-brand-accent relative z-10" />
+          </div>
+          <h3 className="text-brand-accent text-xl md:text-2xl font-black mb-3 uppercase tracking-[0.1em] leading-tight flex flex-col gap-1">
+            <span>Calidad</span>
+            <span>Garantizada</span>
+          </h3>
+          <p className="text-brand-muted text-sm md:text-base leading-relaxed mt-1 font-medium">Materiales de primera calidad y control riguroso de acabados.</p>
+        </div>
+      </section>
 
       <section id="productos" className="pb-20">
         <h2 className="text-center text-3xl font-extrabold text-brand-accent my-10 uppercase tracking-[2px]">
