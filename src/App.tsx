@@ -48,6 +48,32 @@ const getDiscountPercent = (price: any, originalPrice: any) => {
   return 0;
 };
 
+function useSwipe({ onSwipedLeft, onSwipedRight }: { onSwipedLeft?: () => void, onSwipedRight?: () => void }) {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe && onSwipedLeft) onSwipedLeft();
+    if (isRightSwipe && onSwipedRight) onSwipedRight();
+  };
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
+}
+
 const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdmin, onEdit, onDelete }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void; userAdmin?: boolean; onEdit?: (p: Product) => void; onDelete?: (id: string) => void; }) {
   const images = Array.from(new Set([p.img, ...(p.images || [])])).filter(Boolean);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -61,16 +87,21 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
     setTimeout(() => setIsAdded(false), 1000);
   };
 
-  const nextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const nextImage = (e?: React.MouseEvent | React.TouchEvent | React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev + 1) % images.length);
   };
-  const prevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const prevImage = (e?: React.MouseEvent | React.TouchEvent | React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
+
+  const swipeHandlers = useSwipe({
+    onSwipedLeft: nextImage,
+    onSwipedRight: prevImage
+  });
 
   let currentImgSrc = images[currentIndex] || '';
   
@@ -88,7 +119,10 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
       className="bg-[#0f1115] rounded-3xl overflow-hidden flex flex-col border border-white/5 hover:border-brand-accent/20 transition-all duration-500 ease-out hover:shadow-[0_20px_60px_-15px_rgba(0,255,136,0.15)] hover:-translate-y-2 cursor-pointer group"
       onClick={() => onClick(p)}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#15181e] to-[#0a0c0f]">
+      <div 
+        className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#15181e] to-[#0a0c0f]"
+        {...swipeHandlers}
+      >
         
         {/* Subtle noise inside the card image area */}
         <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none z-10" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }} />
@@ -218,6 +252,11 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  const swipeHandlers = useSwipe({
+    onSwipedLeft: nextImage,
+    onSwipedRight: prevImage
+  });
+
   let currentImgSrc = images[currentIndex] || '';
   if (currentImgSrc.match(/^https?:\/\/(www\.)?imgur\.com\/[a-zA-Z0-9]+$/)) {
     currentImgSrc = currentImgSrc.replace('imgur.com', 'i.imgur.com') + '.jpg';
@@ -243,7 +282,10 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
         </button>
 
         {/* Left: Image Gallery */}
-        <div className="w-full md:w-1/2 relative bg-gradient-to-br from-[#15181e] to-[#0a0c0f] min-h-[350px] md:min-h-[500px] flex items-center justify-center p-8">
+        <div 
+          className="w-full md:w-1/2 relative bg-gradient-to-br from-[#15181e] to-[#0a0c0f] min-h-[350px] md:min-h-[500px] flex items-center justify-center p-8"
+          {...swipeHandlers}
+        >
           {/* Subtle noise texture */}
           <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")' }} />
           
