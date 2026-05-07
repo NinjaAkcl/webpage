@@ -48,6 +48,7 @@ service cloud.firestore {
              isOptionalString(data, 'category', 100) &&
              isOptionalString(data, 'id', 200) && // Permitted if the client mistakenly writes it inline
              isOptionalList(data, 'images', 30) &&
+             isOptionalList(data, 'colors', 30) &&
              isOptionalList(data, 'categories', 50); // Setting categories list globally for site_settings
     }
 
@@ -62,15 +63,15 @@ service cloud.firestore {
       
       // 2. Allow product creation ONLY for admin with strict key size constraints & type safety
       allow create: if isAdmin() 
-                    && incoming().keys().size() <= 11 // Adjusted max keys length
+                    && incoming().keys().size() <= 12 // Adjusted max keys length
                     && isValidProduct(incoming());
                     
       // 3. Allow product updates ONLY for admin using exactly allowed fields
       allow update: if isAdmin() 
-                    && incoming().keys().size() <= 11 // Adjusted max keys length
+                    && incoming().keys().size() <= 12 // Adjusted max keys length
                     && incoming().diff(existing()).affectedKeys().hasOnly([
                       'name', 'desc', 'price', 'img', 'originalPrice', 
-                      'discountBadge', 'category', 'images', 'id', 'categories'
+                      'discountBadge', 'category', 'images', 'colors', 'id', 'categories'
                     ])
                     && isValidProduct(incoming());
                     

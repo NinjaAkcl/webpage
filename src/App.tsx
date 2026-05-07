@@ -16,12 +16,61 @@ interface Product {
   img: string;
   images?: string[];
   category?: string;
+  colors?: string[];
 }
 
 interface CartItem extends Product {
   cartId: string;
   quantity: number;
+  selectedColor?: string;
 }
+
+const COLOR_MAP: Record<string, string> = {
+  'negro': '#111111',
+  'blanco': '#FFFFFF',
+  'rojo': '#EF4444',
+  'azul': '#3B82F6',
+  'verde': '#22C55E',
+  'gris': '#6B7280',
+  'amarillo': '#EAB308',
+  'naranja': '#F97316',
+  'rosa': '#EC4899',
+  'marron': '#452c16',
+  'marrón': '#452c16',
+  'celeste': '#38bdf8',
+  'violeta': '#8B5CF6',
+  'morado': '#9333EA',
+  'lila': '#C084FC',
+  'lila silk': '#d421c6',
+  'fucsia': '#D946EF',
+  'magenta': '#db1cba',
+  'capibara': '#d19854',
+  'dorado': '#EAB308',
+  'plateado': '#D1D5DB',
+  'natural': '#F5F5DC',
+  'transparente': 'transparent',
+};
+
+function getMapColor(colorName: string) {
+  const normalized = colorName.toLowerCase().trim();
+  return COLOR_MAP[normalized] || normalized;
+}
+
+const ColorListInput = React.memo(function ColorListInput({ initialColors, onChange }: { initialColors?: string[], onChange: (colors: string[]) => void }) {
+  const [val, setVal] = useState(initialColors?.join(', ') || '');
+  return (
+    <input 
+      type="text" 
+      value={val} 
+      onChange={(e) => {
+        setVal(e.target.value);
+        onChange(e.target.value.split(',').map(c => c.trim()).filter(Boolean));
+      }}
+      placeholder="Ej. Negro, Blanco, Rojo"
+      className="w-full bg-black/50 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-brand-accent focus:outline-none transition-colors"
+    />
+  );
+});
 
 const INITIAL_PRODUCTS: Product[] = [
   { name: 'Organizador de Escritorio Minimal', desc: 'Porta lápices y herramientas con diseño compacto. Ideal para escritorio o estudio.', price: '$50,000', img: 'Foto+Organizador', category: 'Oficina' },
@@ -74,7 +123,7 @@ function useSwipe({ onSwipedLeft, onSwipedRight }: { onSwipedLeft?: () => void, 
   return { onTouchStart, onTouchMove, onTouchEnd };
 }
 
-const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdmin, onEdit, onDelete }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product) => void; userAdmin?: boolean; onEdit?: (p: Product) => void; onDelete?: (id: string) => void; }) {
+const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdmin, onEdit, onDelete }: { p: Product; onClick: (p: Product) => void; onAdd: (p: Product, color?: string) => void; userAdmin?: boolean; onEdit?: (p: Product) => void; onDelete?: (id: string) => void; }) {
   const images = Array.from(new Set([p.img, ...(p.images || [])])).filter(Boolean);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
@@ -82,7 +131,7 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAdd(p);
+    onAdd(p, p.colors?.[0]);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1000);
   };
@@ -228,14 +277,15 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
   );
 });
 
-const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p: Product; onClose: () => void; onAdd: (p: Product) => void }) {
+const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p: Product; onClose: () => void; onAdd: (p: Product, color?: string) => void }) {
   const images = Array.from(new Set([p.img, ...(p.images || [])])).filter(Boolean);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(p.colors?.[0]);
 
   const handleAdd = () => {
-    onAdd(p);
+    onAdd(p, selectedColor);
     setIsAdded(true);
     setTimeout(() => {
       setIsAdded(false);
@@ -329,8 +379,10 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
                   <button 
                     key={idx} 
                     onClick={() => {
-                      setImgLoaded(false);
-                      setCurrentIndex(idx);
+                      if (idx !== currentIndex) {
+                        setImgLoaded(false);
+                        setCurrentIndex(idx);
+                      }
                     }}
                     className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-brand-accent' : 'w-1.5 bg-white/30 hover:bg-white/60'}`} 
                   />
@@ -369,10 +421,57 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
           </div>
           
           {/* Aesthetic feature tags */}
-          <div className="flex gap-3 mb-10 text-[10px] uppercase tracking-wider font-bold text-white/50">
+          <div className="flex gap-3 mb-8 text-[10px] uppercase tracking-wider font-bold text-white/50 flex-wrap">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-white/5 bg-white/[0.02]"><span className="w-1.5 h-1.5 rounded-full bg-brand-accent"></span> Premium PLA</div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-white/5 bg-white/[0.02]"><span className="w-1.5 h-1.5 rounded-full bg-brand-accent"></span> Alta Precisión</div>
           </div>
+
+          {p.colors && p.colors.length > 0 && (
+            <div className="mb-10">
+              <span className="text-xs uppercase tracking-[0.2em] text-brand-muted font-bold block mb-3">Color Seleccionado: <span className="text-white ml-2">{selectedColor}</span></span>
+              <div className="flex flex-wrap gap-3">
+                {p.colors.map(color => {
+                  const hex = getMapColor(color);
+                  return (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        setSelectedColor(color);
+                        // Try to find an image matching the color name
+                        const normalizedColorName = color.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '');
+                        // Check if any image URL contains the color name
+                        const matchedIndex = images.findIndex(img => {
+                          let normalizedImgUrl = img;
+                          try {
+                            normalizedImgUrl = decodeURIComponent(img);
+                          } catch(e) {}
+                          normalizedImgUrl = normalizedImgUrl.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '');
+                          return normalizedImgUrl.includes(normalizedColorName);
+                        });
+                        if (matchedIndex !== -1 && currentIndex !== matchedIndex) {
+                          setImgLoaded(false);
+                          setCurrentIndex(matchedIndex);
+                        }
+                      }}
+                      title={color}
+                      className={`w-10 h-10 rounded-full border-2 transition-all duration-300 relative group flex items-center justify-center ${selectedColor === color ? 'border-brand-accent scale-110 shadow-[0_0_15px_rgba(0,255,136,0.3)]' : 'border-white/20 hover:border-white/50 hover:scale-105'}`}
+                      style={{ 
+                        backgroundColor: hex,
+                        backgroundImage: hex === 'transparent' ? 'repeating-linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%, #333), repeating-linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%, #333)' : undefined,
+                        backgroundPosition: hex === 'transparent' ? '0 0, 5px 5px' : undefined,
+                        backgroundSize: hex === 'transparent' ? '10px 10px' : undefined,
+                      }}
+                    >
+                      {/* Tooltip on hover */}
+                      <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-transform bg-black border border-white/10 text-white text-[10px] uppercase px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none origin-bottom">
+                        {color}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           <button 
             onClick={handleAdd}
@@ -663,15 +762,17 @@ export default function App() {
     setPredefinedCategories(predefinedCategories.filter(c => c !== catToRemove));
   };
 
-  const addToCart = React.useCallback((product: Product) => {
+  const addToCart = React.useCallback((product: Product, color?: string) => {
     setCart(prev => {
-      const matchBy = product.id ? (item: CartItem) => item.id === product.id : (item: CartItem) => item.name === product.name;
+      const matchBy = product.id 
+        ? (item: CartItem) => item.id === product.id && item.selectedColor === color
+        : (item: CartItem) => item.name === product.name && item.selectedColor === color;
       const existingItem = prev.find(matchBy);
       
       if (existingItem) {
         return prev.map(item => matchBy(item) ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { ...product, cartId: Math.random().toString(), quantity: 1 }];
+      return [...prev, { ...product, cartId: Math.random().toString(), quantity: 1, selectedColor: color }];
     });
     
     setCartIsAnimating(true);
@@ -705,7 +806,8 @@ export default function App() {
     if (cart.length === 0) return;
     let message = `¡Hola! Quiero realizar el siguiente pedido:\n\n`;
     cart.forEach(item => {
-      message += `- ${item.quantity}x *${item.name}* (${item.price} c/u)\n`;
+      const colorText = item.selectedColor ? ` [Color: ${item.selectedColor}]` : '';
+      message += `- ${item.quantity}x *${item.name}*${colorText} (${item.price} c/u)\n`;
     });
     message += `\n*Total estimado: ${formatPrice(cartTotal)}*\n\n¿Tienen stock y cómo coordinamos el pago/envío?`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
@@ -1359,6 +1461,20 @@ export default function App() {
 
                   <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
                     <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-1 items-center flex gap-2">
+                      <Tag size={14} className="text-brand-accent"/> Opciones
+                    </h4>
+                    <div>
+                      <label className="block text-[11px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Colores Disponibles (separados por coma)</label>
+                      <ColorListInput 
+                        key={editingProduct.id || editingProduct.name}
+                        initialColors={editingProduct.colors}
+                        onChange={(colors) => setEditingProduct({...editingProduct, colors})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                    <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-1 items-center flex gap-2">
                       <Edit2 size={14} className="text-brand-accent"/> Imágenes
                     </h4>
                     <div>
@@ -1463,6 +1579,9 @@ export default function App() {
                     <img src={item.img && typeof item.img === 'string' && (item.img.startsWith('http') || item.img.startsWith('/') || item.img.startsWith('data:')) ? item.img : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img || item.name || 'Item')}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
                     <div className="flex-1 flex flex-col">
                       <h3 className="font-bold text-sm leading-tight mb-1">{item.name}</h3>
+                      {item.selectedColor && (
+                        <span className="text-[10px] uppercase font-bold text-white/50 mb-1">Color: {item.selectedColor}</span>
+                      )}
                       <span className="text-brand-accent font-extrabold text-sm mb-2">{item.price}</span>
                       <div className="flex items-center justify-between mt-auto">
                         <div className="flex items-center gap-3 bg-black/50 rounded-lg px-2 py-1">
