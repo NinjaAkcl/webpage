@@ -236,7 +236,7 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
         )}
       </div>
       <div className="p-6 md:p-8 flex flex-col flex-grow bg-[#0a0c0f] rounded-b-3xl text-left">
-        <div className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold mb-3">{p.category || 'Modelo 3D'}</div>
+        <div className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold mb-3">{p.category || 'Diseño Exclusivo'}</div>
         
         {/* Main Product Info Container */}
         <div className="flex flex-col flex-grow">
@@ -971,11 +971,11 @@ export default function App() {
 
       <section className="flex flex-col items-center justify-center pt-24 pb-16 text-center relative z-10 w-full max-w-5xl mx-auto px-4">
         <h1 className="text-6xl md:text-8xl font-black leading-[1.05] mb-6 uppercase tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-tr from-white via-white to-white/60">
-          Impresión 3D de<br />
-          <span className="text-brand-accent drop-shadow-[0_0_40px_rgba(55,211,128,0.4)]">Alta Calidad</span>
+          Diseño Exclusivo<br />
+          <span className="text-brand-accent drop-shadow-[0_0_40px_rgba(55,211,128,0.4)]">de Vanguardia</span>
         </h1>
         <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto text-brand-muted font-medium">
-          Transformamos tus ideas en realidad con tecnología de última generación, precisión milimétrica y materiales premium.
+          Creamos piezas únicas que transforman tus espacios. Especialistas en objetografía y terminaciones premium.
         </p>
         <button 
           onClick={() => document.getElementById('productos')?.scrollIntoView({ behavior: 'smooth' })}
@@ -992,10 +992,10 @@ export default function App() {
           
           <div className="text-center mb-10">
             <h2 className="text-3xl font-extrabold uppercase tracking-[2px] text-white">
-              Nuestros <span className="text-brand-accent">Trabajos</span>
+              Nuestras <span className="text-brand-accent">Colecciones</span>
             </h2>
             <p className="text-brand-muted mt-3 max-w-2xl mx-auto text-sm">
-              Un vistazo a la calidad, nivel de detalle y terminación de nuestras impresiones de exhibición.
+              Descubrí piezas únicas que combinan estética contemporánea, precisión y un nivel de detalle excepcional.
             </p>
           </div>
           
@@ -1214,15 +1214,15 @@ export default function App() {
             </div>
             
             <h3 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-white mb-4">
-              ¿Tenés tu propio <span className="text-brand-accent">diseño 3D?</span>
+              ¿Tenés un <span className="text-brand-accent">Proyecto a Medida?</span>
             </h3>
             
             <p className="text-brand-muted max-w-lg mb-8 leading-relaxed font-medium">
-              Si encontraste un modelo en Thingiverse, Cults3D, Printables o tienes un archivo STL personalizado, envíalo y te lo cotizamos sin cargo.
+              Fabricamos productos exclusivos basados en tus propias ideas. Materializamos diseños particulares con estándares de calidad premium y asesoramiento personalizado.
             </p>
             
             <button 
-              onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! Tengo un archivo STL/diseño 3D y me gustaría pedir una cotización.')}`, '_blank')}
+              onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! Me gustaría cotizar un proyecto a medida o diseño personalizado.')}`, '_blank')}
               className="bg-white text-black px-8 py-4 rounded-full font-extrabold tracking-wider text-sm flex items-center gap-2 hover:bg-brand-accent transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(55,211,128,0.4)] hover:scale-105"
             >
               COTIZAR MI ARCHIVO AHORA
