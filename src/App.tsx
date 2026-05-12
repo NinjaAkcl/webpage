@@ -1641,7 +1641,7 @@ export default function App() {
       </a>
 
       {/* Persistent Bottom Nav Mobile */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#0f1115] border-t border-white/10 z-[100] flex justify-around items-center p-3 pb-safe-area-inset-bottom shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#0f1115] border-t border-white/10 z-40 flex justify-around items-center p-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
         <a href="#" className="flex flex-col items-center gap-1 text-brand-muted hover:text-brand-accent transition-colors">
           <Home size={20} />
           <span className="text-[10px] uppercase font-bold tracking-wider">Inicio</span>
