@@ -138,11 +138,13 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
 
   const nextImage = (e?: React.MouseEvent | React.TouchEvent | React.SyntheticEvent) => {
     if (e) e.stopPropagation();
+    if (images.length <= 1) return;
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev + 1) % images.length);
   };
   const prevImage = (e?: React.MouseEvent | React.TouchEvent | React.SyntheticEvent) => {
     if (e) e.stopPropagation();
+    if (images.length <= 1) return;
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
@@ -157,6 +159,10 @@ const ProductCard = React.memo(function ProductCard({ p, onClick, onAdd, userAdm
   // Auto-fix Imgur page links to direct image links
   if (currentImgSrc.match(/^https?:\/\/(www\.)?imgur\.com\/[a-zA-Z0-9]+$/)) {
     currentImgSrc = currentImgSrc.replace('imgur.com', 'i.imgur.com') + '.jpg';
+  }
+  
+  if (currentImgSrc.startsWith('http://')) {
+    currentImgSrc = currentImgSrc.replace('http://', 'https://');
   }
 
   const displaySrc = currentImgSrc.startsWith('http') || currentImgSrc.startsWith('/') || currentImgSrc.startsWith('data:') 
@@ -294,10 +300,12 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
   };
 
   const nextImage = () => {
+    if (images.length <= 1) return;
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev + 1) % images.length);
   };
   const prevImage = () => {
+    if (images.length <= 1) return;
     setImgLoaded(false);
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
@@ -310,6 +318,9 @@ const ProductModal = React.memo(function ProductModal({ p, onClose, onAdd }: { p
   let currentImgSrc = images[currentIndex] || '';
   if (currentImgSrc.match(/^https?:\/\/(www\.)?imgur\.com\/[a-zA-Z0-9]+$/)) {
     currentImgSrc = currentImgSrc.replace('imgur.com', 'i.imgur.com') + '.jpg';
+  }
+  if (currentImgSrc.startsWith('http://')) {
+    currentImgSrc = currentImgSrc.replace('http://', 'https://');
   }
   const displaySrc = currentImgSrc.startsWith('http') || currentImgSrc.startsWith('/') || currentImgSrc.startsWith('data:') 
     ? currentImgSrc 
@@ -1576,7 +1587,7 @@ export default function App() {
               ) : (
                 cart.map((item) => (
                   <div key={item.cartId} className="flex gap-4 bg-black/30 p-4 rounded-xl border border-white/5">
-                    <img src={item.img && typeof item.img === 'string' && (item.img.startsWith('http') || item.img.startsWith('/') || item.img.startsWith('data:')) ? item.img : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img || item.name || 'Item')}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
+                    <img src={item.img && typeof item.img === 'string' && (item.img.startsWith('http') || item.img.startsWith('/') || item.img.startsWith('data:')) ? item.img.replace('http://', 'https://') : `https://placehold.co/100x100/222/555?text=${encodeURIComponent(item.img || item.name || 'Item')}`} alt={item.name} className="w-20 h-20 object-cover rounded-lg" />
                     <div className="flex-1 flex flex-col">
                       <h3 className="font-bold text-sm leading-tight mb-1">{item.name}</h3>
                       {item.selectedColor && (
